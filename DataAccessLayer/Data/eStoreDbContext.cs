@@ -63,6 +63,5 @@ namespace DataAccessLayer.Data
                 .WithMany(c => c.Products)
                 .HasForeignKey(p => p.CategoryId);
         }
-
     }
 }
