@@ -12,7 +12,6 @@ namespace DataAccessLayer.Data
     {
         public eStoreDbContext(DbContextOptions<eStoreDbContext> options) : base(options)
         {
-            this.Database.Migrate();
         }
         public DbSet<Member> Members { get; set; }
         public DbSet<Order> Orders { get; set; }
@@ -22,6 +21,19 @@ namespace DataAccessLayer.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            // Cấu hình độ chính xác cho kiểu decimal
+            modelBuilder.Entity<Order>()
+                .Property(o => o.Freight)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<OrderDetail>()
+                .Property(od => od.UnitPrice)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<Product>()
+                .Property(p => p.UnitPrice)
+                .HasPrecision(18, 2);
 
             // Cấu hình khóa chính tổng hợp cho OrderDetail
             modelBuilder.Entity<OrderDetail>()
@@ -44,6 +56,12 @@ namespace DataAccessLayer.Data
                 .HasOne(od => od.Product)
                 .WithMany(p => p.OrderDetails)
                 .HasForeignKey(od => od.ProductId);
+
+            // Thiết lập quan hệ giữa Products và Category
+            modelBuilder.Entity<Product>()
+                .HasOne(p => p.Category)
+                .WithMany(c => c.Products)
+                .HasForeignKey(p => p.CategoryId);
         }
     }
 }
