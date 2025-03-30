@@ -4,34 +4,58 @@ using DataAccessLayer.Data;
 using DataAccessLayer.UnitOfWork;
 using eStore.Components;
 using Microsoft.EntityFrameworkCore;
+using BLL.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// -------------------- Services --------------------
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
 builder.Services.AddDbContext<eStoreDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-// Add UnitOfWork
+
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-// Add Services
+// Business Logic Services
 builder.Services.AddScoped<IMemberService, MemberService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IOrderDetailService, OrderDetailService>();
+builder.Services.AddScoped<ISalesReportService, SalesReportService>();
+//builder.Services.AddRazorComponents()
+//    .AddInteractiveServerComponents();
+
+// SignalR
+builder.Services.AddSignalR();
+
+// -------------------- App Build --------------------
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+app.MapHub<SalesReportHub>("/salesReportHub");
+
+// Test DB Connection
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<eStoreDbContext>();
+    if (context.Database.CanConnect())
+    {
+        Console.WriteLine("Connected to SQL Server successfully!");
+    }
+    else
+    {
+        Console.WriteLine("Could not connect to SQL Server!");
+    }
+}
+
+// -------------------- Middleware --------------------
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
-
 app.UseStaticFiles();
 app.UseAntiforgery();
 

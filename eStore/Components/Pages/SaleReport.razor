@@ -1,0 +1,151 @@
+﻿@page "/salesReport"
+@rendermode InteractiveServer
+@using BLL.DTOs
+@using BLL.Services.IServices
+@using Microsoft.AspNetCore.SignalR.Client
+@inject ISalesReportService SalesReportService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<h3 class="text-primary mb-4"><i class="fas fa-chart-line"></i> Sales Report</h3>
+
+<div class="card shadow-sm p-4">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label for="startDate" class="form-label">Start Date</label>
+            <InputDate @bind-Value="StartDate" class="form-control" id="startDate" />
+        </div>
+        <div class="col-md-4">
+            <label for="endDate" class="form-label">End Date</label>
+            <InputDate @bind-Value="EndDate" class="form-control" id="endDate" />
+        </div>
+        <div class="col-md-4">
+            <button class="btn btn-primary w-100" @onclick="GenerateReportVoid" disabled="@IsLoading">
+                @if (IsLoading)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true">Generating...</span>
+                }
+                else
+                {
+                    <i class="fas fa-sync-alt me-2">Generate Report</i>
+                }
+            </button>
+        </div>
+    </div>
+</div>
+
+@if (ErrorMessage is not null)
+{
+    <div class="alert alert-danger mt-4 text-center">
+        <strong>Error:</strong> @ErrorMessage
+    </div>
+}
+else if (SalesReportData?.Any() == true)
+{
+    <div class="mt-5">
+        <h5 class="mb-3">Results from <strong>@StartDate:yyyy-MM-dd</strong> to <strong>@EndDate:yyyy-MM-dd</strong></h5>
+        <table class="table table-bordered table-hover shadow-sm">
+            <thead class="table-dark">
+                <tr>
+                    <th>Product Name</th>
+                    <th class="text-end">Total Quantity</th>
+                    <th class="text-end">Total Revenue</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in SalesReportData)
+                {
+                    <tr>
+                        <td>@item.ProductName</td>
+                        <td class="text-end">@item.TotalQuantity</td>
+                        <td class="text-end">@item.TotalRevenue.ToString("C")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else if (HasGenerated)
+{
+    <div class="alert alert-warning mt-4 text-center">
+        No data found for the selected period.
+    </div>
+}
+
+@code {
+    private DateTime StartDate { get; set; } = DateTime.Today.AddDays(-7);
+    private DateTime EndDate { get; set; } = DateTime.Today;
+    private List<SalesReportDTO> SalesReportData { get; set; } = new();
+    private bool IsLoading = false;
+    private bool HasGenerated = false;
+    private string? ErrorMessage = null;
+    private HubConnection? hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/salesReportHub"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        hubConnection.On<List<SalesReportDTO>>("SalesReportGenerated", async (data) =>
+        {
+            await JSRuntime.InvokeVoidAsync("console.log", $"✅ SalesReportGenerated with {data.Count} records");
+
+            SalesReportData = data;
+            IsLoading = false;
+            HasGenerated = true;
+            ErrorMessage = null;
+
+            await InvokeAsync(StateHasChanged);
+        });
+
+        hubConnection.Closed += async (error) =>
+        {
+            Console.WriteLine("🔌 SignalR disconnected. Reconnecting...");
+            await Task.Delay(3000);
+            await hubConnection.StartAsync();
+        };
+
+        await hubConnection.StartAsync();
+    }
+
+    private async void GenerateReportVoid()
+    {
+        await GenerateReport();
+    }
+
+    private async Task GenerateReport()
+    {
+        await JSRuntime.InvokeVoidAsync("console.log", "🔁 GenerateReport clicked");
+
+        if (StartDate > EndDate)
+        {
+            ErrorMessage = "Start date must be earlier than End date.";
+            return;
+        }
+
+        if (hubConnection is not null && hubConnection.State == HubConnectionState.Connected)
+        {
+            IsLoading = true;
+            HasGenerated = false;
+            ErrorMessage = null;
+            SalesReportData.Clear();
+
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("console.log", $"📡 Sending report for: {StartDate:yyyy-MM-dd} -> {EndDate:yyyy-MM-dd}");
+                await hubConnection.InvokeAsync("TriggerReport", StartDate, EndDate);
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Failed to request report: {ex.Message}";
+                IsLoading = false;
+            }
+        }
+        else
+        {
+            ErrorMessage = "SignalR connection not established. Please refresh the page.";
+        }
+    }
+}
