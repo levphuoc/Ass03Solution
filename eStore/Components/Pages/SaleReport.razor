@@ -1,29 +1,41 @@
 ﻿@page "/salesReport"
 @rendermode InteractiveServer
 @using BLL.DTOs
+@using BLL.Extensions
 @using BLL.Services.IServices
 @using Microsoft.AspNetCore.SignalR.Client
+@using System.Text
 @inject ISalesReportService SalesReportService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 
 <h3 class="text-primary mb-4"><i class="fas fa-chart-line"></i> Sales Report</h3>
+<div class="card shadow-sm p-4 mb-4">
+    <div class="row g-3">
+        <div class="col-md-3">
+            <label class="form-label fw-bold">Start Date</label>
+            <InputDate @bind-Value="StartDate" class="form-control" />
+        </div>
 
-<div class="card shadow-sm p-4">
-    <div class="row g-3 align-items-end">
-        <div class="col-md-4">
-            <label for="startDate" class="form-label">Start Date</label>
-            <InputDate @bind-Value="StartDate" class="form-control" id="startDate" />
+        <div class="col-md-3">
+            <label class="form-label fw-bold">End Date</label>
+            <InputDate @bind-Value="EndDate" class="form-control" />
         </div>
-        <div class="col-md-4">
-            <label for="endDate" class="form-label">End Date</label>
-            <InputDate @bind-Value="EndDate" class="form-control" id="endDate" />
+
+        <div class="col-md-3">
+            <label class="form-label fw-bold">Chart Type</label>
+            <select class="form-select" @bind="SelectedChartType">
+                <option value="pie">Pie Chart</option>
+                <option value="bar">Bar Chart</option>
+                <option value="line">Line Chart</option>
+            </select>
         </div>
-        <div class="col-md-4">
-            <button class="btn btn-primary w-100" @onclick="GenerateReportVoid" disabled="@IsLoading">
+
+        <div class="col-md-3 d-flex align-items-end">
+            <button class="btn btn-primary w-100" @onclick="GenerateReport" disabled="@IsLoading">
                 @if (IsLoading)
                 {
-                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true">Generating...</span>
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                 }
                 else
                 {
@@ -32,7 +44,33 @@
             </button>
         </div>
     </div>
+
+    @if (SalesReportData.Any())
+    {
+        <div class="row g-3 mt-3">
+            <div class="col-md-4 offset-md-8 d-flex gap-2 justify-content-end">
+                <button class="btn btn-outline-secondary" @onclick="ExportToCsv">
+                    <i class="fas fa-file-csv me-1"></i>Export to CSV
+                </button>
+                <button class="btn btn-outline-danger" @onclick="ExportToPdf">
+                    <i class="fas fa-file-pdf me-1"></i>Export to PDF
+                </button>
+            </div>
+        </div>
+    }
+
+    @if (SalesReportData.Any())
+    {
+        <div class="row g-3 align-items-end mt-3">
+            <div class="col-md-12 text-end">
+                <button class="btn btn-success" @onclick="GenerateChart">
+                    <i class="fas fa-chart-pie me-1">Generate Chart</i>
+                </button>
+            </div>
+        </div>
+    }
 </div>
+
 
 @if (ErrorMessage is not null)
 {
@@ -43,17 +81,42 @@
 else if (SalesReportData?.Any() == true)
 {
     <div class="mt-5">
-        <h5 class="mb-3">Results from <strong>@StartDate:yyyy-MM-dd</strong> to <strong>@EndDate:yyyy-MM-dd</strong></h5>
-        <table class="table table-bordered table-hover shadow-sm">
+        <h5>Results from <strong>@StartDate.ToString("yyyy-MM-dd")</strong> to <strong>@EndDate.ToString("yyyy-MM-dd")</strong></h5>
+
+        <div class="row g-2 mb-3">
+            <div class="col-md-4">
+                <input type="text" class="form-control" placeholder="🔍 Search Product Name..." @bind="SearchTerm" @bind:event="oninput" />
+            </div>
+            <div class="col-md-4">
+                <input type="number" class="form-control" placeholder="Min Quantity" @bind="MinQuantity" @bind:event="oninput" />
+            </div>
+            <div class="col-md-4">
+                <input type="number" class="form-control" placeholder="Min Revenue" @bind="MinRevenue" @bind:event="oninput" />
+            </div>
+        </div>
+
+        <table class="table table-bordered table-hover shadow-sm" id="sales-report-table">
             <thead class="table-dark">
                 <tr>
                     <th>Product Name</th>
-                    <th class="text-end">Total Quantity</th>
-                    <th class="text-end">Total Revenue</th>
+                    <th class="text-end" @onclick="() => ApplySorting(nameof(SalesReportDTO.TotalQuantity))">
+                        Total Quantity
+                        @if (CurrentSortColumn == nameof(SalesReportDTO.TotalQuantity))
+                        {
+                            <i class="@(SortDescending ? "fas fa-arrow-down" : "fas fa-arrow-up")"></i>
+                        }
+                    </th>
+                    <th class="text-end" @onclick="() => ApplySorting(nameof(SalesReportDTO.TotalRevenue))">
+                        Total Revenue
+                        @if (CurrentSortColumn == nameof(SalesReportDTO.TotalRevenue))
+                        {
+                            <i class="@(SortDescending ? "fas fa-arrow-down" : "fas fa-arrow-up")"></i>
+                        }
+                    </th>
                 </tr>
             </thead>
             <tbody>
-                @foreach (var item in SalesReportData)
+                @foreach (var item in FilteredAndSortedData)
                 {
                     <tr>
                         <td>@item.ProductName</td>
@@ -62,6 +125,13 @@ else if (SalesReportData?.Any() == true)
                     </tr>
                 }
             </tbody>
+            
+            <div class="mt-5">
+                <h5 class="mb-3">Sales Chart (@SelectedChartType.ToUpperInvariant())</h5>
+                <div style="position: relative; height: 50vh;">
+                    <canvas id="salesChart"></canvas>
+                </div>
+            </div>
         </table>
     </div>
 }
@@ -80,6 +150,34 @@ else if (HasGenerated)
     private bool HasGenerated = false;
     private string? ErrorMessage = null;
     private HubConnection? hubConnection;
+    private string SelectedChartType { get; set; } = "bar"; // default chart type
+
+    // Filtering parameters
+    private string SearchTerm { get; set; } = "";
+    private int? MinQuantity { get; set; }
+    private decimal? MinRevenue { get; set; }
+
+    // Sorting parameters
+    private string CurrentSortColumn { get; set; } = nameof(SalesReportDTO.TotalRevenue);
+    private bool SortDescending { get; set; } = true;
+
+    private IEnumerable<SalesReportDTO> FilteredAndSortedData => SalesReportData
+        .Where(x => string.IsNullOrWhiteSpace(SearchTerm) || x.ProductName.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase))
+        .Where(x => !MinQuantity.HasValue || x.TotalQuantity >= MinQuantity.Value)
+        .Where(x => !MinRevenue.HasValue || x.TotalRevenue >= MinRevenue.Value)
+        .OrderByDynamic(CurrentSortColumn, SortDescending);
+
+    // Apply Sorting Method
+    private void ApplySorting(string columnName)
+    {
+        if (CurrentSortColumn == columnName)
+            SortDescending = !SortDescending;
+        else
+        {
+            CurrentSortColumn = columnName;
+            SortDescending = true;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -90,34 +188,37 @@ else if (HasGenerated)
 
         hubConnection.On<List<SalesReportDTO>>("SalesReportGenerated", async (data) =>
         {
-            await JSRuntime.InvokeVoidAsync("console.log", $"✅ SalesReportGenerated with {data.Count} records");
+            await JSRuntime.InvokeVoidAsync("console.log", $"SalesReportGenerated with {data.Count} records");
 
             SalesReportData = data;
             IsLoading = false;
             HasGenerated = true;
             ErrorMessage = null;
-
             await InvokeAsync(StateHasChanged);
+            await GenerateChart();
         });
 
         hubConnection.Closed += async (error) =>
         {
-            Console.WriteLine("🔌 SignalR disconnected. Reconnecting...");
+            Console.WriteLine("SignalR disconnected. Reconnecting...");
+            IsLoading = false;
             await Task.Delay(3000);
             await hubConnection.StartAsync();
         };
 
         await hubConnection.StartAsync();
     }
-
-    private async void GenerateReportVoid()
+    private async Task GenerateChart()
     {
-        await GenerateReport();
+        if (SalesReportData.Any())
+        {
+            await RenderChart();
+        }
     }
 
     private async Task GenerateReport()
     {
-        await JSRuntime.InvokeVoidAsync("console.log", "🔁 GenerateReport clicked");
+        await JSRuntime.InvokeVoidAsync("console.log", "GenerateReport clicked");
 
         if (StartDate > EndDate)
         {
@@ -148,4 +249,36 @@ else if (HasGenerated)
             ErrorMessage = "SignalR connection not established. Please refresh the page.";
         }
     }
+
+    private async Task ExportToCsv()
+    {
+        var csvContent = new StringBuilder();
+        csvContent.AppendLine("Product Name,Total Quantity,Total Revenue");
+
+        foreach (var item in SalesReportData)
+        {
+            csvContent.AppendLine($"{item.ProductName},{item.TotalQuantity},{item.TotalRevenue}");
+        }
+
+        var csvBytes = Encoding.UTF8.GetBytes(csvContent.ToString());
+        await JSRuntime.InvokeVoidAsync("downloadFile", "sales-report.csv", "text/csv", csvBytes);
+    }
+    private async Task RenderChart()
+    {
+        var labels = SalesReportData.Select(x => x.ProductName).ToArray();
+        var revenues = SalesReportData.Select(x => x.TotalRevenue).ToArray();
+
+        await JSRuntime.InvokeVoidAsync("renderSalesChart", labels, revenues, SelectedChartType);
+    }
+
+
+    private async Task ExportToPdf()
+    {
+        await JSRuntime.InvokeVoidAsync(
+            "generatePdfFromTable",
+            "sales-report-table",
+            "salesChart",
+            $"Sales Report - {StartDate:yyyyMMdd}-{EndDate:yyyyMMdd}.pdf");
+    }
+
 }
