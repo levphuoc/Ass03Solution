@@ -16,15 +16,7 @@ namespace BLL.Hubs
         }
 
         // Gửi thông báo cập nhật đơn hàng
-        public async Task SendOrderUpdate(List<Order> orders)
-        {
-            if (orders == null || orders.Count == 0)
-            {
-                // Optionally log this situation
-                return;
-            }
-            await Clients.All.SendAsync("OrderUpdated", orders);
-        }
+       
 
         // Notify clients when an order is created
         public async Task NotifyOrderCreation(int orderId)
