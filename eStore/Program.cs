@@ -1,4 +1,4 @@
-using BLL.Services.IServices;
+﻿using BLL.Services.IServices;
 using BLL.Services;
 using DataAccessLayer.Data;
 using DataAccessLayer.UnitOfWork;
@@ -33,6 +33,7 @@ builder.Services.AddSignalR();
 var app = builder.Build();
 
 app.MapHub<SalesReportHub>("/salesReportHub");
+app.MapHub<OrderHub>("/orderHub");
 
 // Test DB Connection
 using (var scope = app.Services.CreateScope())

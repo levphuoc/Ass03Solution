@@ -1,4 +1,5 @@
 ﻿using DataAccessLayer.Data;
+using DataAccessLayer.Entities;
 using DataAccessLayer.Repository.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -8,13 +9,8 @@ using System.Threading.Tasks;
 
 namespace DataAccessLayer.Repository
 {
-    public class OrderDetailRepository : IOrderDetailRepository
+    public class OrderDetailRepository : GenericRepository<OrderDetail>, IOrderDetailRepository
     {
-        private readonly eStoreDbContext _context;
-
-        public OrderDetailRepository(eStoreDbContext context)
-        {
-            _context = context;
-        }
+        public OrderDetailRepository(eStoreDbContext context) : base(context) { }
     }
     }

@@ -1,0 +1,179 @@
+﻿@page "/orders/edit"
+@rendermode InteractiveServer
+
+@using BLL.DTOs
+@using BLL.Services.IServices
+@using Microsoft.AspNetCore.SignalR.Client
+@inject IOrderService OrderService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<h3 class="text-primary mb-4"><i class="fas fa-edit"></i> Edit Order</h3>
+
+@if (!string.IsNullOrEmpty(ErrorMessage))
+{
+    <div class="alert alert-danger mt-4 text-center">
+        <strong>Error:</strong> @ErrorMessage
+    </div>
+}
+
+@if (IsSuccess)
+{
+    <div class="alert alert-success mt-4 text-center">
+        Order Updated Successfully!
+    </div>
+}
+
+<div class="card shadow-sm p-4 mb-4">
+    @if (OrderModel == null)
+    {
+        <p>Loading...</p>
+    }
+    else
+    {
+        <div class="card-header bg-primary text-white">
+            <h3 class="mb-0"><i class="fas fa-edit"></i> Edit Order</h3>
+        </div>
+
+        <div class="card-body">
+            <div class="row g-3 mb-3">
+                <!-- Freight -->
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Freight</label>
+                    <InputNumber @bind-Value="OrderModel.Freight" class="form-control" min="0" />
+                    @if (OrderModel.Freight < 0)
+                    {
+                        <div class="text-danger">Freight cannot be negative.</div>
+                    }
+                </div>
+
+                <!-- Order Date -->
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Order Date</label>
+                    <InputDate @bind-Value="OrderModel.OrderDate" class="form-control" min="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                </div>
+
+                <!-- Required Date & Shipped Date -->
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Required Date</label>
+                        <InputDate @bind-Value="OrderModel.RequiredDate" class="form-control" min="@OrderModel.OrderDate.ToString("yyyy-MM-dd")" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Shipped Date</label>
+                        <InputDate @bind-Value="OrderModel.ShippedDate" class="form-control" min="@OrderModel.OrderDate.ToString("yyyy-MM-dd")" />
+                    </div>
+                </div>
+
+               
+                <div class="col-md-12 d-grid">
+                    <button class="btn btn-primary btn-lg" @onclick="UpdateOrder" disabled="@IsLoading">
+                        @if (IsLoading)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        }
+                        else
+                        {
+                            <i class="fas fa-save me-2">Save Order</i>
+                            
+                            }
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    public int orderid { get; set; } 
+
+    private OrderDTO OrderModel { get; set; } = new();
+    private bool IsLoading = false;
+    private bool IsSuccess = false;
+    private string? ErrorMessage;
+
+    private HubConnection? hubConnection;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            IsLoading = true;
+
+           
+            hubConnection = new HubConnectionBuilder()
+          .WithUrl(NavigationManager.ToAbsoluteUri("/orderHub"))
+          .WithAutomaticReconnect()
+          .Build();
+
+            hubConnection.On<int>("SpecificOrderUpdated", (orderId) =>
+            {
+                Console.WriteLine($"Order {orderId} created successfully.");
+                InvokeAsync(() => StateHasChanged());
+            });
+
+            await hubConnection.StartAsync();
+
+          
+            OrderModel = await OrderService.GetOrderByIdAsync(orderid);
+
+            if (OrderModel == null)
+            {
+                ErrorMessage = "Order not found.";
+            }
+            else
+            {
+                IsSuccess = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task UpdateOrder()
+    {
+        try
+        {
+            IsLoading = true;
+
+            
+            if (OrderModel.Freight < 0)
+            {
+                ErrorMessage = "Freight cannot be negative.";
+                return;
+            }
+
+          
+            await OrderService.UpdateOrderAsync(OrderModel);
+
+          
+            if (hubConnection != null)
+            {
+                await hubConnection.InvokeAsync("NotifySpecificOrderUpdate", OrderModel.OrderId); 
+            }
+
+          
+            IsSuccess = true;
+            Console.WriteLine("Order Updated Successfully!");
+            await InvokeAsync(() => NavigationManager.NavigateTo("/orders", true));
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+}

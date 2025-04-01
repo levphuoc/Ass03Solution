@@ -1,0 +1,280 @@
+﻿@page "/orders/create"
+
+@rendermode InteractiveServer
+
+@using BLL.DTOs
+@using BLL.Services
+@using BLL.Services.IServices
+@inject IOrderService OrderService
+@inject IProductService ProductService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject IOrderDetailService OrderDetailService
+@using Microsoft.AspNetCore.SignalR.Client
+<h3 class="text-primary mb-4"><i class="fas fa-file-alt"></i> Create New Order</h3>
+
+<div class="card shadow-sm p-4 mb-4">
+    <div class="card-header bg-primary text-white">
+        <h3 class="mb-0"><i class="fas fa-file-alt"></i> Create New Order</h3>
+    </div>
+    <div class="card-body">
+
+        <div class="row g-3 mb-3">
+
+            <div class="col-md-6">
+
+                <label class="form-label fw-bold">Freight</label>
+
+                <InputNumber @bind-Value="OrderModel.Freight" class="form-control" min="0" />
+
+                @if (OrderModel.Freight < 0)
+
+                {
+
+                    <div class="text-danger">Freight cannot be negative.</div>
+
+                }
+
+            </div>
+
+            <div class="col-md-6">
+
+                <label class="form-label fw-bold">Order Date</label>
+
+                <InputDate @bind-Value="OrderModel.OrderDate" class="form-control" min="@DateTime.Now.ToString("yyyy-MM-dd")" />
+
+            </div>
+
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+
+                <label class="form-label fw-bold">Required Date</label>
+
+                <InputDate @bind-Value="OrderModel.RequiredDate" class="form-control" min="@OrderModel.OrderDate.ToString("yyyy-MM-dd")" />
+
+            </div>
+
+            <div class="col-md-6">
+
+                <label class="form-label fw-bold">Shipped Date</label>
+
+                <InputDate @bind-Value="OrderModel.ShippedDate" class="form-control" min="@OrderModel.OrderDate.ToString("yyyy-MM-dd")" />
+
+            </div>
+        </div>
+
+        <h4 class="mt-4 mb-3 text-primary"><i class="fas fa-box"></i> Order Items</h4>
+
+        <div class="table-responsive mb-4">
+            <table class="table table-bordered table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 40%;">Product</th>
+                        <th style="width: 20%;">Quantity</th>
+                        <th style="width: 20%;">Unit Price</th>
+                        <th style="width: 20%;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in OrderItems)
+                    {
+                        <tr>
+                            <td>
+                                <select class="form-select" @onchange="e => OnProductChanged(e, item)">
+                                    <option disabled selected value="">-- Select Product --</option>
+                                    @foreach (var product in products)
+                                    {
+                                        <option value="@product.ProductId">@product.ProductName</option>
+                                    }
+                                </select>
+                                @if (item.ProductId == 0)
+                                {
+                                    <small class="text-danger">Product is required.</small>
+                                }
+                            </td>
+                            <td>
+                                <input type="number" class="form-control" @bind="item.Quantity" placeholder="Qty" min="1" />
+                            </td>
+                            <td>
+                                <input type="number" class="form-control" @bind="item.UnitPrice" placeholder="Unit Price" readonly />
+                            </td>
+                            <td>
+                                <button class="btn btn-danger btn-sm" @onclick="() => RemoveOrderItem(item)">
+                                    <i class="fas fa-trash"></i> Remove
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <button class="btn btn-outline-secondary mb-4" @onclick="AddOrderItem">
+            <i class="fas fa-plus"></i> Add Product
+        </button>
+
+        <div class="d-grid">
+            <button class="btn btn-primary btn-lg" @onclick="CreateOrder" disabled="@IsLoading">
+                @if (IsLoading)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                }
+                else
+                {
+                    <i class="fas fa-check"> Create Order</i>
+                }
+            </button>
+        </div>
+    </div>
+
+</div>
+
+
+@if (ErrorMessage is not null)
+{
+    <div class="alert alert-danger mt-4 text-center">
+        @ErrorMessage
+    </div>
+}
+
+@if (IsSuccess)
+{
+    <div class="alert alert-success mt-4 text-center">
+        Order Created Successfully!
+    </div>
+}
+
+@code {
+    private List<OrderItemDTO> OrderItems { get; set; } = new List<OrderItemDTO>();
+
+    private OrderDTO OrderModel { get; set; } = new OrderDTO
+    {
+        MemberId = 1,
+        OrderDate = DateTime.Today,
+        RequiredDate = DateTime.Today.AddDays(7),
+        ShippedDate = DateTime.Today.AddDays(3),
+        Freight = 1m
+    };
+
+    private List<ProductSelectModel> products = new();
+
+    
+
+    private void RemoveOrderItem(OrderItemDTO item)
+    {
+        OrderItems.Remove(item);
+    }
+
+    private bool IsLoading = false;
+    private bool IsSuccess = false;
+    private string? ErrorMessage = null;
+    private HubConnection? hubConnection;
+    protected override async Task OnInitializedAsync()
+    {
+        
+
+        hubConnection = new HubConnectionBuilder()
+         .WithUrl(NavigationManager.ToAbsoluteUri("/orderHub"))
+         .WithAutomaticReconnect()
+         .Build();
+
+        hubConnection.On<int>("OrderCreated", (orderId) =>
+        {
+            // Nhận thông báo đơn hàng được tạo thành công và cập nhật UI
+            Console.WriteLine($"Order {orderId} created successfully.");
+            InvokeAsync(() => StateHasChanged());
+        });
+
+        await hubConnection.StartAsync();
+        products = await ProductService.GetProductsAsync();  // Load product list
+        AddOrderItem();
+    }
+    private void AddOrderItem()
+    {
+        OrderItems.Add(new OrderItemDTO { ProductId = 0, Quantity = 1, UnitPrice = 0, Discount = 0 });
+    }
+    private void OnProductChanged(ChangeEventArgs e, OrderItemDTO item)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int productId))
+        {
+            item.ProductId = productId;
+
+            var selectedProduct = products.FirstOrDefault(p => p.ProductId == productId);
+
+            if (selectedProduct != null)
+            {
+                item.UnitPrice = selectedProduct.UnitPrice;
+            }
+        }
+    }
+
+    private async Task CreateOrder()
+    {
+        try
+        {
+            IsLoading = true;
+            ErrorMessage = null;
+            foreach (var item in OrderItems)
+            {
+                if (item.ProductId <= 0)
+                {
+                    ErrorMessage = "Please select a valid product for each item.";
+                    return;
+                }
+               
+            }
+            //await OrderService.CreateOrderAsync(OrderModel);
+            var createdOrderId = await OrderService.CreateOrderAsync(OrderModel);
+
+            if (createdOrderId <= 0)
+            {
+                ErrorMessage = "Failed to create the order.";
+                return;
+            }
+
+            foreach (var item in OrderItems)
+            {
+                if (item.ProductId <= 0)
+                {
+                    ErrorMessage = "Please select a valid product for each item.";
+                    return;
+                }
+                item.OrderId = createdOrderId;
+            }
+
+            // 2. Cập nhật OrderId cho tất cả OrderItems
+            foreach (var item in OrderItems)
+            {
+                item.OrderId = createdOrderId;
+            }
+
+            // 3. Tạo danh sách OrderDetailDTO để gửi đến OrderDetailService
+            var orderDetails = OrderItems.Select(item => new OrderItemDTO
+                {
+                    OrderId = createdOrderId,
+                    ProductId = item.ProductId,
+                    Quantity = item.Quantity,
+                    UnitPrice = item.UnitPrice,
+                    Discount = item.Discount
+                }).ToList();
+
+            // 4. Thêm từng OrderDetail vào Database
+            await OrderDetailService.AddOrderDetailsAsync(orderDetails);
+            IsSuccess = true;
+            Console.WriteLine("Order Created Successfully!");
+            await hubConnection.InvokeAsync("NotifyOrderCreation", createdOrderId);
+            await InvokeAsync(() => NavigationManager.NavigateTo("/orders", true));
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+}
