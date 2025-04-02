@@ -14,5 +14,6 @@ namespace BLL.Services.IServices
         Task AddMemberAsync(Member member);
         Task UpdateMemberAsync(Member member);
         Task DeleteMemberAsync(int id);
+        Task<bool> UpdateProfileAsync(int memberId, string companyName, string city, string email, string password);
     }
 }
