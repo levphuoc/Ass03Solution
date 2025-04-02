@@ -18,10 +18,16 @@ builder.Services.AddRazorComponents()
 // Add controller support
 builder.Services.AddControllers();
 
+// Change from Scoped to Transient to prevent concurrent access issues
 builder.Services.AddDbContext<EStoreDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
+    // Add this to enable sensitive data logging for development
+    .EnableSensitiveDataLogging(builder.Environment.IsDevelopment())
+    // Add this to help with concurrent requests
+    .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
 
-builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+// Changed from Scoped to Transient to prevent concurrent access issues
+builder.Services.AddTransient<IUnitOfWork, UnitOfWork>();
 
 // Authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -58,15 +64,14 @@ builder.Services.AddAuthorization(options =>
 
 builder.Services.AddHttpContextAccessor();
 
-// Business Logic Services
-builder.Services.AddScoped<IMemberService, MemberService>();
-builder.Services.AddScoped<IProductService, ProductService>();
-builder.Services.AddScoped<IOrderService, OrderService>();
-builder.Services.AddScoped<IOrderDetailService, OrderDetailService>();
-builder.Services.AddScoped<ISalesReportService, SalesReportService>();
-builder.Services.AddScoped<IMemberRepository, MemberRepository>();
-builder.Services.AddScoped<IAuthService, AuthService>();
-
+// Business Logic Services - Change from Scoped to Transient for all repository and service registrations
+builder.Services.AddTransient<IMemberService, MemberService>();
+builder.Services.AddTransient<IProductService, ProductService>();
+builder.Services.AddTransient<IOrderService, OrderService>();
+builder.Services.AddTransient<IOrderDetailService, OrderDetailService>();
+builder.Services.AddTransient<ISalesReportService, SalesReportService>();
+builder.Services.AddTransient<IMemberRepository, MemberRepository>();
+builder.Services.AddTransient<IAuthService, AuthService>();
 
 // SignalR
 builder.Services.AddSignalR();

@@ -1,0 +1,170 @@
+@page "/userinfo"
+@using BLL.Services
+@using System.Security.Claims
+@using DataAccessLayer.Entities
+@inject IAuthService AuthService
+@inject IHttpContextAccessor HttpContextAccessor
+@rendermode InteractiveServer
+
+<PageTitle>User Information from Cookie</PageTitle>
+
+<div class="container mt-4">
+    <h1>User Information from Cookie</h1>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3>From HttpContext Claims</h3>
+                </div>
+                <div class="card-body">
+                    @if (HttpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated == true)
+                    {
+                        <div class="mb-3">
+                            <strong>Is Authenticated:</strong> 
+                            <span class="badge bg-success">Yes</span>
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>User ID:</strong> 
+                            @HttpContextAccessor.HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Email:</strong> 
+                            @HttpContextAccessor.HttpContext.User.Identity?.Name
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Company Name:</strong> 
+                            @HttpContextAccessor.HttpContext.User.FindFirst("CompanyName")?.Value
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Primary Role:</strong> 
+                            @HttpContextAccessor.HttpContext.User.FindFirst(c => c.Type == ClaimTypes.Role)?.Value
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Is Admin:</strong> 
+                            @(HttpContextAccessor.HttpContext.User.IsInRole("Admin") ? "Yes" : "No")
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Is Staff:</strong> 
+                            @(HttpContextAccessor.HttpContext.User.IsInRole("Staff") ? "Yes" : "No")
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>All Claims:</strong>
+                            <ul class="list-group mt-2">
+                                @foreach (var claim in HttpContextAccessor.HttpContext.User.Claims)
+                                {
+                                    <li class="list-group-item">
+                                        <strong>@claim.Type:</strong> @claim.Value
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning">
+                            Not authenticated. Please <a href="/login">login</a> to see your information.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6" @onclick="LoadDbUserInfo">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h3>From Database (Click to Load)</h3>
+                </div>
+                <div class="card-body">
+                    @if (loading)
+                    {
+                        <div class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p>Loading user data...</p>
+                        </div>
+                    }
+                    else if (currentUser != null)
+                    {
+                        <div class="mb-3">
+                            <strong>User ID:</strong> @currentUser.MemberId
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Email:</strong> @currentUser.Email
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Company Name:</strong> @currentUser.CompanyName
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Role:</strong> @currentUser.Role
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Is Admin (from service):</strong> 
+                            @(AuthService.IsInRole("Admin") ? "Yes" : "No")
+                        </div>
+                    }
+                    else if (dbInfoClicked)
+                    {
+                        <div class="alert alert-warning">
+                            No user information available from database.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            Click this panel to load user info from database.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private Member? currentUser;
+    private bool loading = false;
+    private bool dbInfoClicked = false;
+
+    // Don't load data automatically on initialization
+    protected override async Task OnInitializedAsync()
+    {
+        // Only load data from claims, not from database
+    }
+
+    private async Task LoadDbUserInfo()
+    {
+        if (loading)
+            return;
+
+        try
+        {
+            dbInfoClicked = true;
+            loading = true;
+            StateHasChanged();
+
+            currentUser = await AuthService.GetCurrentUserAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading user data: {ex.Message}");
+        }
+        finally
+        {
+            loading = false;
+            StateHasChanged();
+        }
+    }
+} 
