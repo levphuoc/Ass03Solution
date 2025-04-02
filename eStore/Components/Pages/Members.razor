@@ -1,0 +1,135 @@
+﻿@page "/members"
+@using BLL.Services.IServices
+@inject IMemberService MemberService
+@using DataAccessLayer.Entities
+@rendermode InteractiveServer
+
+<h3>Members</h3>
+
+@if (members == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Email</th>
+                <th>Company</th>
+                <th>City</th>
+                <th>Country</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var member in members)
+            {
+                <tr>
+                    <td>@member.MemberId</td>
+                    <td>@member.Email</td>
+                    <td>@member.CompanyName</td>
+                    <td>@member.City</td>
+                    <td>@member.Country</td>
+                    <td>
+                        <button class="btn btn-primary" @onclick="() => EditMember(member)">Edit</button>
+                        <button class="btn btn-danger" @onclick="() => DeleteMember(member.MemberId)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<button class="btn btn-success" @onclick="AddNewMember">Add New</button>
+
+@if (isEditing)
+{
+    <EditForm Model="selectedMember" OnValidSubmit="SaveMember">
+        <DataAnnotationsValidator />
+        <div>
+            <label>Email:</label>
+            <InputText @bind-Value="selectedMember.Email" class="form-control" />
+        </div>
+        <div>
+            <label>Company:</label>
+            <InputText @bind-Value="selectedMember.CompanyName" class="form-control" />
+        </div>
+        <div>
+            <label>City:</label>
+            <InputText @bind-Value="selectedMember.City" class="form-control" />
+        </div>
+        <div>
+            <label>Country:</label>
+            <InputText @bind-Value="selectedMember.Country" class="form-control" />
+        </div>
+        <div>
+            <label>Password:</label>
+            <InputText @bind-Value="selectedMember.Password" class="form-control" type="password" />
+        </div>
+        <button type="submit" class="btn btn-primary" @onclick="@SaveMember">Save</button>
+        <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+    </EditForm>
+}
+
+@code {
+    private List<Member> members;
+    private Member selectedMember = new Member();
+    private bool isEditing = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        members = (await MemberService.GetMembersAsync()).ToList();
+        StateHasChanged();
+    }
+
+    private void AddNewMember()
+    {
+        selectedMember = new Member();
+        isEditing = true;
+        StateHasChanged();
+    }
+
+    private void EditMember(Member member)
+    {
+        selectedMember = new Member
+            {
+                MemberId = member.MemberId,
+                Email = member.Email,
+                CompanyName = member.CompanyName,
+                City = member.City,
+                Country = member.Country
+            };
+        isEditing = true;
+        StateHasChanged();
+    }
+
+    private async Task SaveMember()
+    {
+        if (selectedMember.MemberId == 0)
+        {
+            await MemberService.AddMemberAsync(selectedMember);
+        }
+        else
+        {
+            await MemberService.UpdateMemberAsync(selectedMember);
+        }
+
+        members = (await MemberService.GetMembersAsync()).ToList();
+        isEditing = false;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task DeleteMember(int id)
+    {
+        await MemberService.DeleteMemberAsync(id);
+        members = (await MemberService.GetMembersAsync()).ToList();
+        StateHasChanged();
+    }
+
+    private void CancelEdit()
+    {
+        isEditing = false;
+    }
+}

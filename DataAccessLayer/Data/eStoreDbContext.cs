@@ -8,15 +8,19 @@ using System.Threading.Tasks;
 
 namespace DataAccessLayer.Data
 {
-    public class eStoreDbContext : DbContext
+    public class EStoreDbContext : DbContext
     {
-        public eStoreDbContext(DbContextOptions<eStoreDbContext> options) : base(options)
+        public EStoreDbContext(DbContextOptions<EStoreDbContext> options) : base(options)
         {
         }
         public DbSet<Member> Members { get; set; }
         public DbSet<Order> Orders { get; set; }
         public DbSet<Product> Products { get; set; }
         public DbSet<OrderDetail> OrderDetails { get; set; }
+        public DbSet<Cart> Carts { get; set; }
+        public DbSet<CartDetail> CartDetails { get; set; }
+
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -62,6 +66,17 @@ namespace DataAccessLayer.Data
                 .HasOne(p => p.Category)
                 .WithMany(c => c.Products)
                 .HasForeignKey(p => p.CategoryId);
+            modelBuilder.Entity<CartDetail>()
+                .HasKey(cd => new { cd.CartId, cd.ProductId });
+
+
+            modelBuilder.Entity<OrderDetail>()
+                .HasKey(od => new { od.OrderId, od.ProductId });
+
+
+            modelBuilder.Entity<CartDetail>()
+               .Property(cd => cd.TotalPrice)
+               .HasColumnType("decimal(18, 2)");
         }
     }
 }
