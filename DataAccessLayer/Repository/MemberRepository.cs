@@ -13,6 +13,7 @@ namespace DataAccessLayer.Repository
     public class MemberRepository : GenericRepository<Member>, IMemberRepository
     {
         public MemberRepository(EStoreDbContext context) : base(context) { }
+
         public async Task<Member?> GetByEmailAsync(string email)
         {
             return await _dbSet.FirstOrDefaultAsync(m => m.Email == email);

@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DataAccessLayer.Migrations
 {
     [DbContext(typeof(EStoreDbContext))]
-    [Migration("20250402101932_Init")]
-    partial class Init
+    [Migration("20250402113617_IntDb")]
+    partial class IntDb
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -64,7 +64,7 @@ namespace DataAccessLayer.Migrations
                     b.ToTable("CartDetails");
                 });
 
-            modelBuilder.Entity("DataAccessLayer.Entities.Category", b =>
+            modelBuilder.Entity("DataAccessLayer.Entities.Categories", b =>
                 {
                     b.Property<int>("CategoryId")
                         .ValueGeneratedOnAdd()
@@ -83,7 +83,7 @@ namespace DataAccessLayer.Migrations
 
                     b.HasKey("CategoryId");
 
-                    b.ToTable("Category");
+                    b.ToTable("Categories");
                 });
 
             modelBuilder.Entity("DataAccessLayer.Entities.Member", b =>
@@ -118,6 +118,11 @@ namespace DataAccessLayer.Migrations
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.HasKey("MemberId");
 
@@ -284,7 +289,7 @@ namespace DataAccessLayer.Migrations
 
             modelBuilder.Entity("DataAccessLayer.Entities.Product", b =>
                 {
-                    b.HasOne("DataAccessLayer.Entities.Category", "Category")
+                    b.HasOne("DataAccessLayer.Entities.Categories", "Category")
                         .WithMany("Products")
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -298,7 +303,7 @@ namespace DataAccessLayer.Migrations
                     b.Navigation("CartDetails");
                 });
 
-            modelBuilder.Entity("DataAccessLayer.Entities.Category", b =>
+            modelBuilder.Entity("DataAccessLayer.Entities.Categories", b =>
                 {
                     b.Navigation("Products");
                 });

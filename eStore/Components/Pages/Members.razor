@@ -1,92 +1,147 @@
-﻿@* @page "/members"
+﻿@page "/members"
 @using BLL.Services.IServices
+@using BLL.Services
 @inject IMemberService MemberService
+@inject IAuthService AuthService
+@inject NavigationManager NavigationManager
 @using DataAccessLayer.Entities
 @rendermode InteractiveServer
 
-<h3>Members</h3>
-
-@if (members == null)
+@if (currentUser == null)
 {
-    <p>Loading...</p>
+    <div class="alert alert-warning">
+        <p>You need to log in to access this page.</p>
+        <button class="btn btn-primary" @onclick="RedirectToLogin">Go to Login</button>
+    </div>
+}
+else if (!AuthService.IsInRole("Admin") && !AuthService.IsInRole("Staff"))
+{
+    <div class="alert alert-danger">
+        <p>You do not have permission to access this page. Only Administrators and Staff can manage members.</p>
+        <button class="btn btn-primary" @onclick="RedirectToHome">Go to Home</button>
+    </div>
 }
 else
 {
-    <table class="table">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Email</th>
-                <th>Company</th>
-                <th>City</th>
-                <th>Country</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var member in members)
-            {
+    <h3>Members Management</h3>
+    <div class="mb-3">
+        <span class="badge bg-info">Your role: @currentUser.Role</span>
+    </div>
+
+    @if (members == null)
+    {
+        <p>Loading...</p>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
                 <tr>
-                    <td>@member.MemberId</td>
-                    <td>@member.Email</td>
-                    <td>@member.CompanyName</td>
-                    <td>@member.City</td>
-                    <td>@member.Country</td>
-                    <td>
-                        <button class="btn btn-primary" @onclick="() => EditMember(member)">Edit</button>
-                        <button class="btn btn-danger" @onclick="() => DeleteMember(member.MemberId)">Delete</button>
-                    </td>
+                    <th>ID</th>
+                    <th>Email</th>
+                    <th>Company</th>
+                    <th>City</th>
+                    <th>Country</th>
+                    <th>Role</th>
+                    <th>Actions</th>
                 </tr>
+            </thead>
+            <tbody>
+                @foreach (var member in members)
+                {
+                    <tr>
+                        <td>@member.MemberId</td>
+                        <td>@member.Email</td>
+                        <td>@member.CompanyName</td>
+                        <td>@member.City</td>
+                        <td>@member.Country</td>
+                        <td>@member.Role</td>
+                        <td>
+                            <button class="btn btn-primary" @onclick="() => EditMember(member)">Edit</button>
+                            @if (AuthService.IsInRole("Admin"))
+                            {
+                                <button class="btn btn-danger" @onclick="() => DeleteMember(member.MemberId)">Delete</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <button class="btn btn-success" @onclick="AddNewMember">Add New</button>
+
+    @if (isEditing)
+    {
+        <EditForm Model="selectedMember" OnValidSubmit="SaveMember">
+            <DataAnnotationsValidator />
+            <div>
+                <label>Email:</label>
+                <InputText @bind-Value="selectedMember.Email" class="form-control" />
+            </div>
+            <div>
+                <label>Company:</label>
+                <InputText @bind-Value="selectedMember.CompanyName" class="form-control" />
+            </div>
+            <div>
+                <label>City:</label>
+                <InputText @bind-Value="selectedMember.City" class="form-control" />
+            </div>
+            <div>
+                <label>Country:</label>
+                <InputText @bind-Value="selectedMember.Country" class="form-control" />
+            </div>
+            <div>
+                <label>Password:</label>
+                <InputText @bind-Value="selectedMember.Password" class="form-control" type="password" />
+            </div>
+            @if (AuthService.IsInRole("Admin"))
+            {
+                <div>
+                    <label>Role:</label>
+                    <InputSelect @bind-Value="selectedMember.Role" class="form-control">
+                        <option value="User">User</option>
+                        <option value="Member">Member</option>
+                        <option value="Staff">Staff</option>
+                        <option value="Admin">Admin</option>
+                    </InputSelect>
+                </div>
             }
-        </tbody>
-    </table>
-}
-
-<button class="btn btn-success" @onclick="AddNewMember">Add New</button>
-
-@if (isEditing)
-{
-    <EditForm Model="selectedMember" OnValidSubmit="SaveMember">
-        <DataAnnotationsValidator />
-        <div>
-            <label>Email:</label>
-            <InputText @bind-Value="selectedMember.Email" class="form-control" />
-        </div>
-        <div>
-            <label>Company:</label>
-            <InputText @bind-Value="selectedMember.CompanyName" class="form-control" />
-        </div>
-        <div>
-            <label>City:</label>
-            <InputText @bind-Value="selectedMember.City" class="form-control" />
-        </div>
-        <div>
-            <label>Country:</label>
-            <InputText @bind-Value="selectedMember.Country" class="form-control" />
-        </div>
-        <div>
-            <label>Password:</label>
-            <InputText @bind-Value="selectedMember.Password" class="form-control" type="password" />
-        </div>
-        <button type="submit" class="btn btn-primary" @onclick="@SaveMember">Save</button>
-        <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
-    </EditForm>
+            <button type="submit" class="btn btn-primary" @onclick="@SaveMember">Save</button>
+            <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+        </EditForm>
+    }
 }
 
 @code {
     private List<Member> members;
+    private Member currentUser;
     private Member selectedMember = new Member();
     private bool isEditing = false;
 
     protected override async Task OnInitializedAsync()
     {
-        members = (await MemberService.GetMembersAsync()).ToList();
+        currentUser = await AuthService.GetCurrentUserAsync();
+        if (currentUser != null && (AuthService.IsInRole("Admin") || AuthService.IsInRole("Staff")))
+        {
+            members = (await MemberService.GetMembersAsync()).ToList();
+        }
         StateHasChanged();
+    }
+
+    private void RedirectToLogin()
+    {
+        NavigationManager.NavigateTo("/login");
+    }
+
+    private void RedirectToHome()
+    {
+        NavigationManager.NavigateTo("/");
     }
 
     private void AddNewMember()
     {
-        selectedMember = new Member();
+        selectedMember = new Member { Role = "User" }; // Default role
         isEditing = true;
         StateHasChanged();
     }
@@ -99,7 +154,9 @@ else
                 Email = member.Email,
                 CompanyName = member.CompanyName,
                 City = member.City,
-                Country = member.Country
+                Country = member.Country,
+                Password = member.Password,
+                Role = member.Role
             };
         isEditing = true;
         StateHasChanged();
@@ -107,25 +164,50 @@ else
 
     private async Task SaveMember()
     {
-        if (selectedMember.MemberId == 0)
+        try
         {
-            await MemberService.AddMemberAsync(selectedMember);
-        }
-        else
-        {
-            await MemberService.UpdateMemberAsync(selectedMember);
-        }
+            if (selectedMember.MemberId == 0)
+            {
+                // Add new member
+                await MemberService.AddMemberAsync(selectedMember);
+            }
+            else
+            {
+                // For update, create a fresh copy of the member object
+                var memberToUpdate = new Member
+                {
+                    MemberId = selectedMember.MemberId,
+                    Email = selectedMember.Email,
+                    CompanyName = selectedMember.CompanyName,
+                    City = selectedMember.City,
+                    Country = selectedMember.Country,
+                    Password = selectedMember.Password,
+                    Role = selectedMember.Role
+                };
+                
+                await MemberService.UpdateMemberAsync(memberToUpdate);
+            }
 
-        members = (await MemberService.GetMembersAsync()).ToList();
-        isEditing = false;
-        InvokeAsync(StateHasChanged);
+            // Refresh the members list
+            members = (await MemberService.GetMembersAsync()).ToList();
+            isEditing = false;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving member: {ex.Message}");
+            // You could add error handling UI here if needed
+        }
     }
 
     private async Task DeleteMember(int id)
     {
-        await MemberService.DeleteMemberAsync(id);
-        members = (await MemberService.GetMembersAsync()).ToList();
-        StateHasChanged();
+        if (AuthService.IsInRole("Admin"))
+        {
+            await MemberService.DeleteMemberAsync(id);
+            members = (await MemberService.GetMembersAsync()).ToList();
+            StateHasChanged();
+        }
     }
 
     private void CancelEdit()
@@ -133,4 +215,3 @@ else
         isEditing = false;
     }
 }
- *@
