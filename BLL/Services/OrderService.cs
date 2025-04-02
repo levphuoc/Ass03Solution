@@ -5,6 +5,7 @@ using DataAccessLayer.UnitOfWork;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -24,17 +25,33 @@ namespace BLL.Services
             return orders.Count();
         }
 
-        
+
 
         public async Task<List<Order>> GetPagedOrdersAsync(int pageNumber, int pageSize)
         {
-            var allOrders = await _unitOfWork.Orders.GetAllAsync();
-            return allOrders
-                .OrderByDescending(o => o.OrderDate)
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
+            
+            Expression<Func<Order, bool>> predicate = _ => true;  
+
+            
+            Func<IQueryable<Order>, IOrderedQueryable<Order>> orderBy = query => query.OrderByDescending(o => o.OrderDate);
+
+           
+            var (orders, totalCount) = await _unitOfWork.Orders.GetPagedAsync(pageNumber, pageSize, predicate, orderBy);
+
+            // Trả về danh sách đơn hàng
+            return orders.ToList();
         }
+        public async Task<List<Order>> GetPagedOrdersAsync(int pageNumber, int pageSize, string status)
+        {
+            // Lấy tất cả đơn hàng nếu trạng thái là "ALL", hoặc chỉ lấy các đơn hàng có trạng thái tương ứng
+            var predicate = status == "ALL" ? _ => true : (Expression<Func<Order, bool>>)(o => o.Status.ToLower() == status.ToLower());
+
+            var (orders, totalCount) = await _unitOfWork.Orders.GetPagedAsync(pageNumber, pageSize, predicate, query => query.OrderByDescending(o => o.OrderDate));
+
+            return orders.ToList();
+        }
+
+
         public async Task<int> CreateOrderAsync(OrderDTO dto)
         {
             var order = new Order
@@ -46,6 +63,7 @@ namespace BLL.Services
                 Freight = dto.Freight
             };
 
+            order.Status = "SPENDING";
             // Thêm Order vào cơ sở dữ liệu
             await _unitOfWork.Orders.AddAsync(order);
             await _unitOfWork.SaveChangesAsync();

@@ -11,7 +11,7 @@ namespace BLL.Services.IServices
     public interface IOrderService
     {
         Task<int> GetTotalOrdersAsync();
-        Task<List<Order>> GetPagedOrdersAsync(int pageNumber, int pageSize);
+        Task<List<Order>> GetPagedOrdersAsync(int pageNumber, int pageSize, string status);
         Task<int> CreateOrderAsync(OrderDTO dto);
         Task<OrderDTO> GetOrderByIdAsync(int orderId); 
         Task UpdateOrderAsync(OrderDTO order);

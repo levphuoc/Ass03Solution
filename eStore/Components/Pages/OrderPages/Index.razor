@@ -20,12 +20,35 @@
                     <h5 class="card-title">Total Orders</h5>
                     <h2>@totalOrders</h2>
                 </div>
+
             </div>
+
+            
         </div>
+       
+
         <div class="col-md-4 d-flex align-items-end justify-content-end">
             <NavLink class="btn btn-primary btn-lg" href="/orders/create">+ Create New Order</NavLink>
         </div>
     </div>
+    <div class="col-md-4">
+    <div class="card bg-light text-dark shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title">Order Status</h5>
+                <select class="form-select" @onchange="OnStatusChanged">
+                    <option value="ALL">All</option>
+                    <option value="spending">Spending</option>
+                    <option value="approve">Approve</option>
+                    <option value="shipped">Shipped</option>
+                    
+                </select>
+
+
+
+        </div>
+    </div>
+</div>
+
 
     <div class="card shadow-sm">
         <div class="card-header bg-light">
@@ -35,11 +58,12 @@
             <table class="table table-bordered">
                 <thead>
                     <tr>
-                        <th>Member ID</th>
+                        
                         <th>Order Date</th>
                         <th>Required Date</th>
                         <th>Shipped Date</th>
                         <th>Freight</th>
+                        <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -47,11 +71,26 @@
                     @foreach (var order in orders)
                     {
                         <tr>
-                            <td>@order.MemberId</td>
+                            
                             <td>@order.OrderDate.ToShortDateString()</td>
                             <td>@(order.RequiredDate?.ToShortDateString() ?? "N/A")</td>
                             <td>@(order.ShippedDate?.ToShortDateString() ?? "N/A")</td>
                             <td>@order.Freight</td>
+                            <td>
+                                @if (order.Status.ToLower() == "spending")
+                                {
+                                    <span class="badge bg-warning">@order.Status.ToUpper()</span> <!-- Màu vàng cho spending -->
+                                }
+                                else if (order.Status.ToLower() == "approve")
+                                {
+                                    <span class="badge bg-success">@order.Status.ToUpper()</span> <!-- Màu xanh lá cho approve -->
+                                }
+                                else if (order.Status.ToLower() == "shipped")
+                                {
+                                    <span class="badge bg-primary">@order.Status.ToUpper()</span> <!-- Màu xanh dương cho shipped -->
+                                }
+                            </td>
+
                             <td>
                                 <div class="d-flex gap-2 justify-content-center">
                                     <NavLink class="btn btn-sm btn-outline-primary me-1" href="@($"orders/edit?orderid={order.OrderId}")">Edit</NavLink>
@@ -90,7 +129,7 @@
     private int pageSize = 8;
     private int totalPages;
     private HubConnection? hubConnection;
-
+    private string selectedStatus = "ALL";
     protected override async Task OnInitializedAsync()
     {
         hubConnection = new HubConnectionBuilder()
@@ -122,10 +161,19 @@
         totalPages = (int)Math.Ceiling(totalOrders / (decimal)pageSize);
         await LoadOrdersAsync(currentPage);
     }
+    private async Task OnStatusChanged(ChangeEventArgs e)
+    {
+        selectedStatus = e.Value.ToString(); 
+        orders = await OrderService.GetPagedOrdersAsync(currentPage, pageSize, selectedStatus);
+        currentPage = 1;  
+        await LoadOrdersAsync(currentPage);  
+    }
 
     private async Task LoadOrdersAsync(int pageNumber)
     {
-        orders = await OrderService.GetPagedOrdersAsync(pageNumber, pageSize);
+        Console.WriteLine("Updated");
+        Console.WriteLine(selectedStatus);
+        orders = await OrderService.GetPagedOrdersAsync(pageNumber, pageSize, selectedStatus);
         currentPage = pageNumber;
         await InvokeAsync(StateHasChanged);
     }
@@ -155,4 +203,5 @@
             await LoadOrdersAsync(pageNumber);
         }
     }
+   
 }

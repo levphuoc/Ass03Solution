@@ -7,6 +7,7 @@
 @using BLL.Services.IServices
 @inject IOrderService OrderService
 @inject IProductService ProductService
+@inject ICartService CartService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 @using Microsoft.AspNetCore.SignalR.Client
@@ -74,6 +75,7 @@
                         <th style="width: 40%;">Product</th>
                         <th style="width: 20%;">Quantity</th>
                         <th style="width: 20%;">Unit Price</th>
+                        <th style="width: 20%;">Total Product</th>
                         <th style="width: 20%;">Actions</th>
                     </tr>
                 </thead>
@@ -82,38 +84,32 @@
                     {
                         <tr>
                             <td>
-                                <select class="form-select" @onchange="e => OnProductChanged(e, item)">
-                                    <option disabled selected value="">-- Select Product --</option>
-                                    @foreach (var product in products)
-                                    {
-                                        <option value="@product.ProductId">@product.ProductName</option>
-                                    }
-                                </select>
-                                @if (item.ProductId == 0)
-                                {
-                                    <small class="text-danger">Product is required.</small>
-                                }
+                                <!-- Tên sản phẩm cố định -->
+                                <input type="text" class="form-control" @bind="item.ProductName" readonly />
                             </td>
                             <td>
+                                <!-- Quantity (số lượng) có thể chỉnh sửa -->
                                 <input type="number" class="form-control" @bind="item.Quantity" placeholder="Qty" min="1" />
                             </td>
                             <td>
+                                <!-- Unit Price (giá đơn vị) là readonly, không chỉnh sửa được -->
                                 <input type="number" class="form-control" @bind="item.UnitPrice" placeholder="Unit Price" readonly />
                             </td>
                             <td>
-                                <button class="btn btn-danger btn-sm" @onclick="() => RemoveOrderItem(item)">
-                                    <i class="fas fa-trash"></i> Remove
-                                </button>
+                                <!-- Total Item (Tổng tiền cho item) có thể chỉnh sửa -->
+                                <input type="number" class="form-control" @bind="item.TotalItem" placeholder="Total Item" min="1" readonly />
                             </td>
+                           
                         </tr>
                     }
+
                 </tbody>
             </table>
         </div>
 
-        <button class="btn btn-outline-secondary mb-4" @onclick="AddOrderItem">
-            <i class="fas fa-plus"></i> Add Product
-        </button>
+        <div class="mt-4 d-flex justify-content-end">
+            <h4 class="text-primary">Total: <strong>@total.ToString("C")</strong></h4>
+        </div>
 
         <div class="d-grid">
             <button class="btn btn-primary btn-lg" @onclick="CreateOrder" disabled="@IsLoading">
@@ -123,7 +119,7 @@
                 }
                 else
                 {
-                    <i class="fas fa-check"> Create Order</i>
+                    <i class="fas fa-check">Checkout</i>
                 }
             </button>
         </div>
@@ -160,7 +156,7 @@
 
     private List<ProductSelectModel> products = new();
 
-    
+
 
     private void RemoveOrderItem(OrderItemDTO item)
     {
@@ -171,9 +167,10 @@
     private bool IsSuccess = false;
     private string? ErrorMessage = null;
     private HubConnection? hubConnection;
+    private double total = 0;
     protected override async Task OnInitializedAsync()
     {
-        
+
 
         hubConnection = new HubConnectionBuilder()
          .WithUrl(NavigationManager.ToAbsoluteUri("/orderHub"))
@@ -182,7 +179,7 @@
 
         hubConnection.On<int>("OrderCreated", (orderId) =>
         {
-           
+
             Console.WriteLine($"Order {orderId} created successfully.");
             InvokeAsync(() => StateHasChanged());
         });
@@ -191,10 +188,30 @@
         products = await ProductService.GetProductsAsync();  
         AddOrderItem();
     }
-    private void AddOrderItem()
+    private async void AddOrderItem()
     {
-        OrderItems.Add(new OrderItemDTO { ProductId = 0, Quantity = 1, UnitPrice = 0, Discount = 0 });
+        var cartItems = await CartService.GetAllCartDetailById(1);
+
+        if (cartItems != null && cartItems.Any())
+        {
+            foreach (var cartItem in cartItems)
+            {
+                OrderItems.Add(new OrderItemDTO
+                    {
+                        ProductId = cartItem.ProductId,
+                        ProductName = cartItem.Product.ProductName,
+                        Quantity = cartItem.Quantity,
+                        UnitPrice = cartItem.Product.UnitPrice,
+                        TotalItem = (float)cartItem.TotalPrice,
+                    });
+
+                total += (double)cartItem.TotalPrice;
+            }
+            InvokeAsync(() => StateHasChanged());
+        }
+        
     }
+
     private void OnProductChanged(ChangeEventArgs e, OrderItemDTO item)
     {
         if (int.TryParse(e.Value?.ToString(), out int productId))

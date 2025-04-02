@@ -22,6 +22,8 @@ namespace BLL.DTOs
         [Required(ErrorMessage = "Freight is required.")]
         [Range(1, double.MaxValue, ErrorMessage = "Freight must be greater than 0.")]
         public decimal Freight { get; set; } = 1m;
+
+        
         public List<OrderItemDTO> OrderItems { get; set; } = new List<OrderItemDTO>();
     }
 }

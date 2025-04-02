@@ -22,8 +22,8 @@ namespace BLL.DTOs
         [Range(1, int.MaxValue, ErrorMessage = "Quantity must be greater than zero.")]
         public int Quantity { get; set; } = 1;
         [Required]
-        public decimal UnitPrice { get; set; }  
-
+        public decimal UnitPrice { get; set; }
+        public float TotalItem { get; set; }
         public float Discount { get; set; } = 0; 
     }
 }

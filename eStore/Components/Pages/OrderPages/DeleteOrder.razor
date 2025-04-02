@@ -109,19 +109,43 @@
    
     private async Task DeleteOrderById()
     {
-        
-            IsLoading = true;
-           
-            await JSRuntime.InvokeVoidAsync("console.log", "Deleted clicked");
-           
-            await OrderDetailService.DeleteOrderItemsByOrderIdAsync(orderid);
-          
-           
-            await OrderService.DeleteOrderAsync(orderid);
-          
+        // Show confirmation dialog
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this order?");
 
-            IsSuccess = true;
-            await InvokeAsync(() => NavigationManager.NavigateTo("/orders"));
-       
+        if (confirmed)
+        {
+            IsLoading = true;
+            try
+            {
+                // Log action for debugging
+                await JSRuntime.InvokeVoidAsync("console.log", "Deleted clicked");
+
+                // Delete order items
+                await OrderDetailService.DeleteOrderItemsByOrderIdAsync(orderid);
+
+                // Delete the order
+                await OrderService.DeleteOrderAsync(orderid);
+
+                // Success message
+                IsSuccess = true;
+
+                // Navigate back to the orders list
+                await InvokeAsync(() => NavigationManager.NavigateTo("/orders"));
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"An error occurred while deleting the order: {ex.Message}";
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+        else
+        {
+            // If the user cancels, no action is performed
+            await JSRuntime.InvokeVoidAsync("console.log", "Order deletion canceled.");
+        }
     }
+
 }

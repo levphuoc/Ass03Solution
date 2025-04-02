@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using BLL.Hubs;
 using DataAccessLayer.Repository.Interfaces;
 using DataAccessLayer.Repository;
+using DataAccessLayer.Entities;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +28,11 @@ builder.Services.AddScoped<IOrderDetailService, OrderDetailService>();
 builder.Services.AddScoped<ISalesReportService, SalesReportService>();
 builder.Services.AddScoped<IMemberRepository, MemberRepository>();
 builder.Services.AddScoped<IMemberService, MemberService>();
+builder.Services.AddScoped<ICartRepository, CartRepository>();
+builder.Services.AddScoped<ICartService, CartService>();
+//builder.Services.AddScoped(IRepository<>, GenericRepository<>);
+builder.Services.AddScoped(IRepository, GenericRepository<CartDetail>);
+
 //builder.Services.AddRazorComponents()
 //    .AddInteractiveServerComponents();
 
