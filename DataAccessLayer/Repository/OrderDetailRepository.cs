@@ -10,9 +10,9 @@ namespace DataAccessLayer.Repository
 {
     public class OrderDetailRepository : IOrderDetailRepository
     {
-        private readonly eStoreDbContext _context;
+        private readonly EStoreDbContext _context;
 
-        public OrderDetailRepository(eStoreDbContext context)
+        public OrderDetailRepository(EStoreDbContext context)
         {
             _context = context;
         }

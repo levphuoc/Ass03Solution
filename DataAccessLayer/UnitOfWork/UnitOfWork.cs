@@ -11,10 +11,10 @@ namespace DataAccessLayer.UnitOfWork
 {
     public class UnitOfWork : IUnitOfWork
     {
-        private readonly eStoreDbContext _context;
+        private readonly EStoreDbContext _context;
         private bool _disposed = false;
 
-        public UnitOfWork(eStoreDbContext context)
+        public UnitOfWork(EStoreDbContext context)
         {
             _context = context;
             Members = new MemberRepository(_context);

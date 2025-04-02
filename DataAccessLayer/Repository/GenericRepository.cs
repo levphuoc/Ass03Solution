@@ -11,9 +11,9 @@ namespace DataAccessLayer.Repository
 {
     public class GenericRepository<TEntity> : IRepository<TEntity> where TEntity : class
     {
-        protected readonly eStoreDbContext _context;
+        protected readonly EStoreDbContext _context;
         protected readonly DbSet<TEntity> _dbSet;
-        public GenericRepository(eStoreDbContext context)
+        public GenericRepository(EStoreDbContext context)
         {
             _context = context;
             _dbSet = context.Set<TEntity>();

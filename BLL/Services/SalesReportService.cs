@@ -15,10 +15,10 @@ namespace BLL.Services
 {
     public class SalesReportService : ISalesReportService
     {
-        private readonly eStoreDbContext _context;
+        private readonly EStoreDbContext _context;
         private readonly IHubContext<SalesReportHub> _hubContext;
 
-        public SalesReportService(eStoreDbContext context, IHubContext<SalesReportHub> hubContext)
+        public SalesReportService(EStoreDbContext context, IHubContext<SalesReportHub> hubContext)
         {
             _context = context;
             _hubContext = hubContext;
