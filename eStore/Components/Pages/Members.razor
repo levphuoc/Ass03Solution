@@ -60,7 +60,7 @@ else
                             <button class="btn btn-primary" @onclick="() => EditMember(member)">Edit</button>
                             @if (AuthService.IsInRole("Admin"))
                             {
-                                <button class="btn btn-danger" @onclick="() => DeleteMember(member.MemberId)">Delete</button>
+                                <button class="btn btn-danger" @onclick="() => ConfirmDelete(member)">Delete</button>
                             }
                         </td>
                     </tr>
@@ -111,21 +111,71 @@ else
             <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
         </EditForm>
     }
+
+    @if (showDeleteConfirm)
+    {
+        <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1" role="dialog">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header @(memberToDelete?.Role == "Admin" ? "bg-danger text-white" : "")">
+                        <h5 class="modal-title">Confirm Delete</h5>
+                        <button type="button" class="btn-close" @onclick="() => showDeleteConfirm = false"></button>
+                    </div>
+                    <div class="modal-body">
+                        @if (memberToDelete?.Role == "Admin")
+                        {
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>Warning:</strong> You are about to delete an Admin account.
+                            </div>
+                            <p>Are you sure you want to delete the admin user <strong>@memberToDelete.Email</strong>?</p>
+                            <p>This action cannot be undone and will remove all associated permissions.</p>
+                        }
+                        else
+                        {
+                            <p>Are you sure you want to delete the user <strong>@memberToDelete?.Email</strong>?</p>
+                        }
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="() => showDeleteConfirm = false">Cancel</button>
+                        @if (memberToDelete?.Role == "Admin")
+                        {
+                            <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteAdmin">
+                                <i class="fas fa-exclamation-triangle"></i> Yes, Delete Admin
+                            </button>
+                        }
+                        else
+                        {
+                            <button type="button" class="btn btn-danger" @onclick="() => DeleteMember(memberToDelete.MemberId)">Delete</button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 }
 
 @code {
     private List<Member> members;
     private Member currentUser;
     private Member selectedMember = new Member();
+    private Member memberToDelete;
     private bool isEditing = false;
+    private bool showDeleteConfirm = false;
+    private bool adminDeleteConfirmed = false;
 
     protected override async Task OnInitializedAsync()
     {
         currentUser = await AuthService.GetCurrentUserAsync();
         if (currentUser != null && (AuthService.IsInRole("Admin") || AuthService.IsInRole("Staff")))
         {
-            members = (await MemberService.GetMembersAsync()).ToList();
+            await LoadMembers();
         }
+    }
+
+    private async Task LoadMembers()
+    {
+        members = (await MemberService.GetMembersAsync()).ToList();
         StateHasChanged();
     }
 
@@ -162,6 +212,23 @@ else
         StateHasChanged();
     }
 
+    private void ConfirmDelete(Member member)
+    {
+        memberToDelete = member;
+        showDeleteConfirm = true;
+        adminDeleteConfirmed = false;
+        StateHasChanged();
+    }
+
+    private void ConfirmDeleteAdmin()
+    {
+        if (memberToDelete?.Role == "Admin")
+        {
+            adminDeleteConfirmed = true;
+            DeleteMember(memberToDelete.MemberId);
+        }
+    }
+
     private async Task SaveMember()
     {
         try
@@ -189,9 +256,8 @@ else
             }
 
             // Refresh the members list
-            members = (await MemberService.GetMembersAsync()).ToList();
+            await LoadMembers();
             isEditing = false;
-            StateHasChanged();
         }
         catch (Exception ex)
         {
@@ -204,9 +270,18 @@ else
     {
         if (AuthService.IsInRole("Admin"))
         {
+            var memberToDelete = members.FirstOrDefault(m => m.MemberId == id);
+            
+            // Check if trying to delete Admin without confirmation
+            if (memberToDelete?.Role == "Admin" && !adminDeleteConfirmed)
+            {
+                return;
+            }
+            
             await MemberService.DeleteMemberAsync(id);
-            members = (await MemberService.GetMembersAsync()).ToList();
-            StateHasChanged();
+            await LoadMembers();
+            showDeleteConfirm = false;
+            adminDeleteConfirmed = false;
         }
     }
 

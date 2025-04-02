@@ -1,9 +1,12 @@
 ﻿@using BLL.Services
 @using DataAccessLayer.Entities
+@using System.Security.Claims
 @inject IAuthService AuthService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
+@inject IHttpContextAccessor HttpContextAccessor
 @rendermode InteractiveServer
+@implements IDisposable
 
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
@@ -12,20 +15,21 @@
 </div>
 
 <div class="auth-container">
-    @if (currentUser != null)
+    @if (_initialized && currentUser != null)
     {
         <div class="user-info">
             <div class="welcome-text">
                 Welcome, @currentUser.CompanyName
                 <span class="badge bg-secondary">@currentUser.Role</span>
             </div>
-            <button @onclick="LogoutUser" class="btn btn-outline-light logout-btn">Logout</button>
+            <button @onclick="HandleLogoutClick" class="btn btn-outline-light logout-btn">Logout</button>
         </div>
     }
     else
     {
         <div class="login-link">
-            <a class="btn btn-outline-light" href="login">Login</a>
+            <a class="btn btn-outline-light me-2" href="login">Login</a>
+            <a class="btn btn-outline-light" href="register">Register</a>
         </div>
     }
 </div>
@@ -52,9 +56,9 @@
             </NavLink>
         </div>
         
-        @if (currentUser != null)
+        @if (_initialized && currentUser != null)
         {
-            @if (AuthService.IsInRole("Admin") || AuthService.IsInRole("Staff") || AuthService.IsInRole("Member"))
+            @if (currentRoles.Contains("Admin") || currentRoles.Contains("Staff") || currentRoles.Contains("Member"))
             {
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="salesReport">
@@ -63,7 +67,7 @@
                 </div>
             }
 
-            @if (AuthService.IsInRole("Admin") || AuthService.IsInRole("Staff"))
+            @if (currentRoles.Contains("Admin") || currentRoles.Contains("Staff"))
             {
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="members">
@@ -72,7 +76,7 @@
                 </div>
             }
 
-            @if (AuthService.IsInRole("Admin"))
+            @if (currentRoles.Contains("Admin"))
             {
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="products">
@@ -80,23 +84,137 @@
                     </NavLink>
                 </div>
             }
+            
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="userinfo">
+                    <span class="bi bi-person-badge-nav-menu" aria-hidden="true"></span> User Info
+                </NavLink>
+            </div>
         }
     </nav>
 </div>
 
 @code {
     private Member? currentUser;
+    private List<string> currentRoles = new();
+    private bool _initialized = false;
+    private DotNetObjectReference<NavMenu> objRef;
 
+    // Preload claims-based data instead of calling database
     protected override async Task OnInitializedAsync()
     {
-        currentUser = await AuthService.GetCurrentUserAsync();
+        try
+        {
+            // Register for circuit events to detect connection state
+            objRef = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("window.registerNavMenu", objRef);
+            
+            // Subscribe to URL changes
+            NavigationManager.LocationChanged += HandleLocationChanged;
+            
+            // Load initial data
+            await LoadUserInfoFromClaims();
+            _initialized = true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error initializing NavMenu: {ex.Message}");
+        }
+    }
+    
+    private void HandleLocationChanged(object sender, LocationChangedEventArgs e)
+    {
+        // When URL changes, check auth status
+        InvokeAsync(async () => 
+        {
+            await LoadUserInfoFromClaims();
+            StateHasChanged();
+        });
+    }
+    
+    private async Task HandleLogoutClick()
+    {
+        try 
+        {
+            // First clear the local state
+            currentUser = null;
+            currentRoles.Clear();
+            _initialized = true;
+            StateHasChanged();
+            
+            // Then redirect to logout endpoint
+            NavigationManager.NavigateTo("/api/auth/logout", true);
+        }
+        catch (Exception ex) 
+        {
+            Console.WriteLine($"Error during logout: {ex.Message}");
+            // Fallback to direct navigation
+            await JSRuntime.InvokeVoidAsync("window.location.href", "/api/auth/logout");
+        }
+    }
+
+    [JSInvokable]
+    public async Task RefreshAuthState()
+    {
+        await LoadUserInfoFromClaims();
         StateHasChanged();
     }
     
-    private async Task LogoutUser()
+    private async Task LoadUserInfoFromClaims()
     {
-        // Use JavaScript to force a complete page reload
-        await JSRuntime.InvokeVoidAsync("forceLogout");
+        try
+        {
+            // Reset user state first
+            currentUser = null;
+            currentRoles.Clear();
+            
+            var context = HttpContextAccessor.HttpContext;
+            if (context?.User?.Identity?.IsAuthenticated == true)
+            {
+                // First try to get data from claims
+                var email = context.User.Identity.Name;
+                var memberId = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var companyName = context.User.FindFirst("CompanyName")?.Value;
+                var role = context.User.FindFirst(ClaimTypes.Role)?.Value;
+                
+                if (!string.IsNullOrEmpty(email) && !string.IsNullOrEmpty(companyName))
+                {
+                    // Create a basic user object from claims
+                    currentUser = new Member
+                    {
+                        Email = email,
+                        CompanyName = companyName,
+                        Role = role ?? "User"
+                    };
+                    
+                    if (int.TryParse(memberId, out int id))
+                    {
+                        currentUser.MemberId = id;
+                    }
+                    
+                    // Collect roles for menu rendering
+                    currentRoles = context.User.Claims
+                        .Where(c => c.Type == ClaimTypes.Role)
+                        .Select(c => c.Value)
+                        .ToList();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading user from claims: {ex.Message}");
+        }
+    }
+    
+    public void Dispose()
+    {
+        try
+        {
+            // Unsubscribe from events to prevent memory leaks
+            NavigationManager.LocationChanged -= HandleLocationChanged;
+            objRef?.Dispose();
+        }
+        catch { /* Ignore disposal errors */ }
     }
 }
 

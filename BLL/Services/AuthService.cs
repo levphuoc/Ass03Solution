@@ -81,13 +81,22 @@ namespace BLL.Services
 
         public async Task<Member?> GetCurrentUserAsync()
         {
-            var email = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
-            if (string.IsNullOrEmpty(email))
+            try
             {
+                var email = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
+                if (string.IsNullOrEmpty(email))
+                {
+                    return null;
+                }
+
+                return await _memberRepository.GetByEmailAsync(email);
+            }
+            catch (Exception ex)
+            {
+                // Log the exception
+                Console.WriteLine($"Error in GetCurrentUserAsync: {ex.Message}");
                 return null;
             }
-
-            return await _memberRepository.GetByEmailAsync(email);
         }
 
         public bool IsInRole(string role)

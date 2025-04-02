@@ -45,22 +45,42 @@ namespace eStore.Controllers
         {
             try
             {
-                // Properly sign out first
+                // Properly sign out
                 await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                 
-                // Clear all cookies to ensure complete logout
-                foreach (var cookie in Request.Cookies.Keys)
-                {
-                    Response.Cookies.Delete(cookie);
-                }
+                // Delete authentication cookie
+                Response.Cookies.Delete(".AspNetCore.Cookies");
                 
-                // Add no-cache headers to prevent caching
+                // Add no-cache headers
                 Response.Headers.Add("Cache-Control", "no-cache, no-store, must-revalidate");
                 Response.Headers.Add("Pragma", "no-cache");
                 Response.Headers.Add("Expires", "0");
                 
-                // Redirect with unique timestamp to force reload
-                return Redirect("/?v=" + DateTime.Now.Ticks);
+                // Return with JavaScript to ensure proper UI update and navigation
+                return Content(@"
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Logging out...</title>
+                    <script>
+                        function completeLogout() {
+                            // Clear any client-side state
+                            localStorage.clear();
+                            sessionStorage.clear();
+                            
+                            // Redirect with cache-busting parameter
+                            window.location.href = '/?v=' + new Date().getTime();
+                        }
+                        
+                        // Execute immediately
+                        completeLogout();
+                    </script>
+                </head>
+                <body>
+                    <p>Logging out... Please wait.</p>
+                </body>
+                </html>
+                ", "text/html");
             }
             catch (Exception ex)
             {
