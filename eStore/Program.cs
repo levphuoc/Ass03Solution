@@ -30,8 +30,8 @@ builder.Services.AddScoped<IMemberRepository, MemberRepository>();
 builder.Services.AddScoped<IMemberService, MemberService>();
 builder.Services.AddScoped<ICartRepository, CartRepository>();
 builder.Services.AddScoped<ICartService, CartService>();
-//builder.Services.AddScoped(IRepository<>, GenericRepository<>);
-builder.Services.AddScoped(IRepository, GenericRepository<CartDetail>);
+builder.Services.AddScoped(typeof(IRepository<>), typeof(GenericRepository<>));
+//builder.Services.AddScoped(IRepository, GenericRepository<CartDetail>);
 
 //builder.Services.AddRazorComponents()
 //    .AddInteractiveServerComponents();
