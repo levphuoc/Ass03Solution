@@ -31,5 +31,6 @@ namespace DataAccessLayer.Entities
         public string Role { get; set; } = "User"; // Default role is User
 
         public ICollection<Order> Orders { get; set; }
+        
     }
 }
