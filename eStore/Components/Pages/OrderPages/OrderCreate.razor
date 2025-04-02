@@ -234,15 +234,7 @@
                 return;
             }
 
-            foreach (var item in OrderItems)
-            {
-                if (item.ProductId <= 0)
-                {
-                    ErrorMessage = "Please select a valid product for each item.";
-                    return;
-                }
-                item.OrderId = createdOrderId;
-            }
+           
 
             // 2. Cập nhật OrderId cho tất cả OrderItems
             foreach (var item in OrderItems)
@@ -265,7 +257,7 @@
             IsSuccess = true;
             Console.WriteLine("Order Created Successfully!");
             await hubConnection.InvokeAsync("NotifyOrderCreation", createdOrderId);
-            await InvokeAsync(() => NavigationManager.NavigateTo("/orders", true));
+            await InvokeAsync(() => NavigationManager.NavigateTo("/orders"));
         }
         catch (Exception ex)
         {

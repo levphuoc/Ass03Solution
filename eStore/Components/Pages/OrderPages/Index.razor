@@ -1,6 +1,5 @@
 ﻿@page "/orders"
 @rendermode InteractiveServer
-
 @using BLL.Services
 @using BLL.Services.IServices
 @using DataAccessLayer.Entities
@@ -130,14 +129,13 @@
             hubConnection.On<int>("SpecificOrderUpdated", async (orderId) =>
         {
             await JSRuntime.InvokeVoidAsync("console.log", $"📡 Received update notification for Order ID {orderId}");
-
-            Console.WriteLine($"Order {orderId} update successfully.");
-            Console.WriteLine($"Orderhsdfsdfsdfsdfs");
-            //await LoadOrdersUpdateAsync(orderId); 
+           
+           
+            await LoadOrdersUpdateAsync(orderId); 
            
             await LoadOrdersAsync(currentPage); 
-            totalOrders = await OrderService.GetTotalOrdersAsync();
             await InvokeAsync(StateHasChanged);
+              NavigationManager.NavigateTo(NavigationManager.Uri, true);
         });
 
             await hubConnection.StartAsync();

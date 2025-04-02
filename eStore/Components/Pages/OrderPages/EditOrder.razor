@@ -157,13 +157,13 @@
           
             if (hubConnection != null)
             {
-                await hubConnection.InvokeAsync("NotifySpecificOrderUpdate", OrderModel.OrderId); 
+                await hubConnection.InvokeAsync("NotifySpecificOrderUpdate", orderid);
             }
 
           
             IsSuccess = true;
             Console.WriteLine("Order Updated Successfully!");
-            await InvokeAsync(() => NavigationManager.NavigateTo("/orders", true));
+            await InvokeAsync(() => NavigationManager.NavigateTo("/orders"));
         }
         catch (Exception ex)
         {
