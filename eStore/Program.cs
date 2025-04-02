@@ -5,6 +5,7 @@ using DataAccessLayer.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using BLL.Hubs;
+using BLL.Services.FirebaseServices;
 
 using Microsoft.AspNetCore.Authentication.Cookies;
 using eStore;
@@ -20,7 +21,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Thêm CORS policy
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -31,18 +31,14 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Thêm controllers cho API
 builder.Services.AddControllers();
-
 // Add HttpClient for API calls
 builder.Services.AddHttpClient();
 
 // Add controller support
 builder.Services.AddApplicationServices();
-
 // Change from Scoped to Transient to prevent concurrent access issues
 // Program.cs hoặc Startup.cs
-
 // Đăng ký DbContext với Scoped thay vì Transient
 builder.Services.AddDbContext<EStoreDbContext>(options =>
 {
@@ -120,6 +116,22 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("RequireMember", policy => policy.RequireRole("Admin", "Staff", "Deliverer"));
     options.AddPolicy("RequireUser", policy => policy.RequireRole("Admin", "Staff", "Deliverer", "User"));
 });
+builder.Services.AddSingleton<IFirebaseDataUploaderService>(provider =>
+    new FirebaseDataUploaderService(
+        Path.Combine(builder.Environment.WebRootPath, "secrets", "firebase-key.json"),
+        "groupassignment03-prn222")
+);
+
+FirebaseInitializerService.Initialize(
+    Path.Combine(builder.Environment.WebRootPath, "secrets", "firebase-key.json"));
+
+
+// Business Logic Services
+builder.Services.AddScoped<IMemberService, MemberService>();
+builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IOrderDetailService, OrderDetailService>();
+builder.Services.AddScoped<ISalesReportService, SalesReportService>();
 
 // SignalR
 builder.Services.AddSignalR();
@@ -168,7 +180,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapRazorComponents<App>()
+app.MapRazorComponents<eStore.Components.App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
