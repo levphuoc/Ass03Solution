@@ -200,6 +200,7 @@ else if (HasGenerated)
 
         hubConnection.Closed += async (error) =>
         {
+
             Console.WriteLine("SignalR disconnected. Reconnecting...");
             IsLoading = false;
             await Task.Delay(3000);
