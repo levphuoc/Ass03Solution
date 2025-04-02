@@ -1,7 +1,33 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿@using BLL.Services
+@using DataAccessLayer.Entities
+@inject IAuthService AuthService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">eStore</a>
     </div>
+</div>
+
+<div class="auth-container">
+    @if (currentUser != null)
+    {
+        <div class="user-info">
+            <div class="welcome-text">
+                Welcome, @currentUser.CompanyName
+                <span class="badge bg-secondary">@currentUser.Role</span>
+            </div>
+            <button @onclick="LogoutUser" class="btn btn-outline-light logout-btn">Logout</button>
+        </div>
+    }
+    else
+    {
+        <div class="login-link">
+            <a class="btn btn-outline-light" href="login">Login</a>
+        </div>
+    }
 </div>
 
 <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
@@ -26,16 +52,51 @@
             </NavLink>
         </div>
         
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="salesReport">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Sales Report
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="members">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Members
-            </NavLink>
-        </div>
+        @if (currentUser != null)
+        {
+            @if (AuthService.IsInRole("Admin") || AuthService.IsInRole("Staff") || AuthService.IsInRole("Member"))
+            {
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="salesReport">
+                        <span class="bi bi-graph-up-nav-menu" aria-hidden="true"></span> Sales Report
+                    </NavLink>
+                </div>
+            }
+
+            @if (AuthService.IsInRole("Admin") || AuthService.IsInRole("Staff"))
+            {
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="members">
+                        <span class="bi bi-people-nav-menu" aria-hidden="true"></span> Members
+                    </NavLink>
+                </div>
+            }
+
+            @if (AuthService.IsInRole("Admin"))
+            {
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="products">
+                        <span class="bi bi-box-nav-menu" aria-hidden="true"></span> Products
+                    </NavLink>
+                </div>
+            }
+        }
     </nav>
 </div>
+
+@code {
+    private Member? currentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentUser = await AuthService.GetCurrentUserAsync();
+        StateHasChanged();
+    }
+    
+    private async Task LogoutUser()
+    {
+        // Use JavaScript to force a complete page reload
+        await JSRuntime.InvokeVoidAsync("forceLogout");
+    }
+}
 

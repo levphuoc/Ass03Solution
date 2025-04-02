@@ -37,7 +37,23 @@ namespace DataAccessLayer.Repository
 
         public async Task UpdateAsync(TEntity entity)
         {
-            _dbSet.Update(entity);
+            // Detach any existing entity with the same key to avoid tracking conflicts
+            var entry = _context.Entry(entity);
+            var keyValues = entry.Metadata.FindPrimaryKey()?.Properties
+                .Select(p => entry.Property(p.Name).CurrentValue)
+                .ToArray();
+
+            if (keyValues != null)
+            {
+                var existingEntity = await _dbSet.FindAsync(keyValues);
+                if (existingEntity != null)
+                {
+                    _context.Entry(existingEntity).State = EntityState.Detached;
+                }
+            }
+
+            // Now attach and update the entity
+            _context.Entry(entity).State = EntityState.Modified;
             await _context.SaveChangesAsync();
         }
 
@@ -96,6 +112,5 @@ namespace DataAccessLayer.Repository
 
             return (items, totalCount);
         }
-
     }
 }
