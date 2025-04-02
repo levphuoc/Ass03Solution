@@ -8,6 +8,7 @@ using BLL.Hubs;
 using DataAccessLayer.Repository.Interfaces;
 using DataAccessLayer.Repository;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using eStore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,7 +18,7 @@ builder.Services.AddRazorComponents()
 
 // Add controller support
 builder.Services.AddControllers();
-
+builder.Services.AddApplicationServices();
 // Change from Scoped to Transient to prevent concurrent access issues
 builder.Services.AddDbContext<EStoreDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
@@ -63,17 +64,6 @@ builder.Services.AddAuthorization(options =>
 });
 
 builder.Services.AddHttpContextAccessor();
-
-// Business Logic Services - Change from Scoped to Transient for all repository and service registrations
-builder.Services.AddTransient<IMemberService, MemberService>();
-builder.Services.AddTransient<IProductService, ProductService>();
-builder.Services.AddTransient<IOrderService, OrderService>();
-builder.Services.AddTransient<IOrderDetailService, OrderDetailService>();
-builder.Services.AddTransient<ISalesReportService, SalesReportService>();
-builder.Services.AddTransient<IMemberRepository, MemberRepository>();
-builder.Services.AddTransient<IAuthService, AuthService>();
-builder.Services.AddTransient<ICategoryRepository, CategoryRepository>();
-builder.Services.AddTransient<ICategoryService, CategoryService>();
 
 // SignalR
 builder.Services.AddSignalR();
