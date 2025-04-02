@@ -5,6 +5,8 @@ using DataAccessLayer.UnitOfWork;
 using eStore.Components;
 using Microsoft.EntityFrameworkCore;
 using BLL.Hubs;
+using DataAccessLayer.Repository.Interfaces;
+using DataAccessLayer.Repository;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,7 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-builder.Services.AddDbContext<eStoreDbContext>(options =>
+builder.Services.AddDbContext<EStoreDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -23,6 +25,8 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IOrderDetailService, OrderDetailService>();
 builder.Services.AddScoped<ISalesReportService, SalesReportService>();
+builder.Services.AddScoped<IMemberRepository, MemberRepository>();
+builder.Services.AddScoped<IMemberService, MemberService>();
 //builder.Services.AddRazorComponents()
 //    .AddInteractiveServerComponents();
 
@@ -34,11 +38,13 @@ var app = builder.Build();
 
 app.MapHub<SalesReportHub>("/salesReportHub");
 app.MapHub<OrderHub>("/orderHub");
+app.MapHub<MemberHub>("/memberHub");
+
 
 // Test DB Connection
 using (var scope = app.Services.CreateScope())
 {
-    var context = scope.ServiceProvider.GetRequiredService<eStoreDbContext>();
+    var context = scope.ServiceProvider.GetRequiredService<EStoreDbContext>();
     if (context.Database.CanConnect())
     {
         Console.WriteLine("Connected to SQL Server successfully!");

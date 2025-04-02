@@ -9,13 +9,10 @@ namespace BLL.Services.IServices
 {
     public interface IMemberService
     {
-        //Task<Member> GetMemberById(int id);
-        //Task<Member> GetMemberByEmail(string email);
-        //Task<IEnumerable<Member>> GetAllMembers();
-        //Task AddMember(Member member);
-        //Task UpdateMember(Member member);
-        //Task DeleteMember(int id);
-        //bool IsValidEmail(string email);
-        //bool IsValidPassword(string password);
+        Task<IEnumerable<Member>> GetMembersAsync();
+        Task<Member> GetMemberByIdAsync(int id);
+        Task AddMemberAsync(Member member);
+        Task UpdateMemberAsync(Member member);
+        Task DeleteMemberAsync(int id);
     }
 }

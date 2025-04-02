@@ -11,6 +11,6 @@ namespace DataAccessLayer.Repository
 {
     public class ProductRepository : GenericRepository<Product>, IProductRepository
     {
-        public ProductRepository(eStoreDbContext context) : base(context) { }
+        public ProductRepository(EStoreDbContext context) : base(context) { }
     }
 }

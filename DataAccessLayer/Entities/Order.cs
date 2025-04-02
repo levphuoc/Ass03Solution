@@ -24,6 +24,9 @@ namespace DataAccessLayer.Entities
 
         public decimal? Freight { get; set; }
 
+        [Required, MaxLength(20)]
+        public string Status { get; set; }
+
         public Member Member { get; set; }
         public ICollection<OrderDetail> OrderDetails { get; set; }
     }

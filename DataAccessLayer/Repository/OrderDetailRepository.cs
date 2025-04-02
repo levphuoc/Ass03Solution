@@ -11,6 +11,8 @@ namespace DataAccessLayer.Repository
 {
     public class OrderDetailRepository : GenericRepository<OrderDetail>, IOrderDetailRepository
     {
+
         public OrderDetailRepository(eStoreDbContext context) : base(context) { }
+
     }
-    }
+}
