@@ -25,17 +25,19 @@ namespace BLL.Hubs
                 {
                     await Clients.All.SendAsync("OrderCreated", orderId); 
                 }
-                else
-                {
-                    Console.WriteLine($"Order not found with ID: {orderId}");
-                }
            
         }
-        public async Task NotifySpecificOrderUpdate(int orderId)
+        public async Task NotifyOrderUpdate(int orderId)
         {
-           
-                    await Clients.All.SendAsync("SpecificOrderUpdated", orderId);
-           
+            
+
+            var order = await _orderService.GetOrderByIdAsync(orderId);
+            if (order != null)
+            {
+                await Clients.All.SendAsync("OrderUpdated", order);
+            }
         }
+
+
     }
 }

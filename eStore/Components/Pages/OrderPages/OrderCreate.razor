@@ -9,8 +9,8 @@
 @inject IProductService ProductService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
-@inject IOrderDetailService OrderDetailService
 @using Microsoft.AspNetCore.SignalR.Client
+@inject IOrderDetailService OrderDetailService
 <h3 class="text-primary mb-4"><i class="fas fa-file-alt"></i> Create New Order</h3>
 
 <div class="card shadow-sm p-4 mb-4">
@@ -182,13 +182,13 @@
 
         hubConnection.On<int>("OrderCreated", (orderId) =>
         {
-            // Nhận thông báo đơn hàng được tạo thành công và cập nhật UI
+           
             Console.WriteLine($"Order {orderId} created successfully.");
             InvokeAsync(() => StateHasChanged());
         });
 
         await hubConnection.StartAsync();
-        products = await ProductService.GetProductsAsync();  // Load product list
+        products = await ProductService.GetProductsAsync();  
         AddOrderItem();
     }
     private void AddOrderItem()
@@ -212,10 +212,13 @@
 
     private async Task CreateOrder()
     {
-        try
-        {
             IsLoading = true;
             ErrorMessage = null;
+            if (OrderModel.Freight < 0)
+            {
+                ErrorMessage = "Freight cannot be negative.";
+                return;
+            }
             foreach (var item in OrderItems)
             {
                 if (item.ProductId <= 0)
@@ -225,7 +228,7 @@
                 }
                
             }
-            //await OrderService.CreateOrderAsync(OrderModel);
+           
             var createdOrderId = await OrderService.CreateOrderAsync(OrderModel);
 
             if (createdOrderId <= 0)
@@ -234,15 +237,10 @@
                 return;
             }
 
-           
-
-            // 2. Cập nhật OrderId cho tất cả OrderItems
             foreach (var item in OrderItems)
             {
                 item.OrderId = createdOrderId;
             }
-
-            // 3. Tạo danh sách OrderDetailDTO để gửi đến OrderDetailService
             var orderDetails = OrderItems.Select(item => new OrderItemDTO
                 {
                     OrderId = createdOrderId,
@@ -251,22 +249,10 @@
                     UnitPrice = item.UnitPrice,
                     Discount = item.Discount
                 }).ToList();
-
-            // 4. Thêm từng OrderDetail vào Database
             await OrderDetailService.AddOrderDetailsAsync(orderDetails);
             IsSuccess = true;
-            Console.WriteLine("Order Created Successfully!");
             await hubConnection.InvokeAsync("NotifyOrderCreation", createdOrderId);
             await InvokeAsync(() => NavigationManager.NavigateTo("/orders"));
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = ex.Message;
-            Console.WriteLine($"Error: {ex.Message}");
-        }
-        finally
-        {
-            IsLoading = false;
-        }
+
     }
 }

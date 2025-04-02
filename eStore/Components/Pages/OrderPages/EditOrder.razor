@@ -3,10 +3,10 @@
 
 @using BLL.DTOs
 @using BLL.Services.IServices
-@using Microsoft.AspNetCore.SignalR.Client
 @inject IOrderService OrderService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
+@using Microsoft.AspNetCore.SignalR.Client
 
 <h3 class="text-primary mb-4"><i class="fas fa-edit"></i> Edit Order</h3>
 
@@ -69,15 +69,8 @@
                
                 <div class="col-md-12 d-grid">
                     <button class="btn btn-primary btn-lg" @onclick="UpdateOrder" disabled="@IsLoading">
-                        @if (IsLoading)
-                        {
-                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                        }
-                        else
-                        {
+                        
                             <i class="fas fa-save me-2">Save Order</i>
-                            
-                            }
                     </button>
                 </div>
             </div>
@@ -93,30 +86,26 @@
     private bool IsLoading = false;
     private bool IsSuccess = false;
     private string? ErrorMessage;
-
     private HubConnection? hubConnection;
+
 
     protected override async Task OnParametersSetAsync()
     {
-        try
-        {
+        
             IsLoading = true;
+        hubConnection = new HubConnectionBuilder()
+    .WithUrl(NavigationManager.ToAbsoluteUri("/orderHub"))
+    .WithAutomaticReconnect()
+    .Build();
 
-           
-            hubConnection = new HubConnectionBuilder()
-          .WithUrl(NavigationManager.ToAbsoluteUri("/orderHub"))
-          .WithAutomaticReconnect()
-          .Build();
+        hubConnection.On<int>("OrderUpdated", (orderId) =>
+        {
 
-            hubConnection.On<int>("SpecificOrderUpdated", (orderId) =>
-            {
-                Console.WriteLine($"Order {orderId} created successfully.");
-                InvokeAsync(() => StateHasChanged());
-            });
+            Console.WriteLine($"Order {orderId} created successfully.");
+            InvokeAsync(() => StateHasChanged());
+        });
 
-            await hubConnection.StartAsync();
-
-          
+        await hubConnection.StartAsync();
             OrderModel = await OrderService.GetOrderByIdAsync(orderid);
 
             if (OrderModel == null)
@@ -126,22 +115,14 @@
             else
             {
                 IsSuccess = false;
+                IsLoading = false;
             }
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = ex.Message;
-        }
-        finally
-        {
-            IsLoading = false;
-        }
     }
+   
 
     private async Task UpdateOrder()
     {
-        try
-        {
+
             IsLoading = true;
 
             
@@ -150,30 +131,18 @@
                 ErrorMessage = "Freight cannot be negative.";
                 return;
             }
-
-          
             await OrderService.UpdateOrderAsync(OrderModel);
-
-          
-            if (hubConnection != null)
-            {
-                await hubConnection.InvokeAsync("NotifySpecificOrderUpdate", orderid);
-            }
-
-          
             IsSuccess = true;
-            Console.WriteLine("Order Updated Successfully!");
+        await hubConnection.InvokeAsync("NotifyOrderUpdate", orderid);
+
+        // Đợi 500ms để đảm bảo SignalR được kích hoạt trước khi tải lại dữ liệu
+            await Task.Delay(500);
+
+        // Load lại dữ liệu mới nhất sau khi cập nhật
+            OrderModel = await OrderService.GetOrderByIdAsync(orderid);
+
+            await InvokeAsync(() => StateHasChanged());
             await InvokeAsync(() => NavigationManager.NavigateTo("/orders"));
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = ex.Message;
-            Console.WriteLine($"Error: {ex.Message}");
-        }
-        finally
-        {
-            IsLoading = false;
-        }
     }
 
 }

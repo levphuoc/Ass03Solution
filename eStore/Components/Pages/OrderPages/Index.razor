@@ -54,41 +54,26 @@
                             <td>@order.Freight</td>
                             <td>
                                 <div class="d-flex gap-2 justify-content-center">
-                                    <!-- Edit Button -->
-                                    <NavLink class="btn btn-sm btn-outline-primary me-1" href="@($"orders/edit?orderid={order.OrderId}")">
-                                        Edit
-                                    </NavLink>
-
-                                    <!-- Details Button -->
-                                    <NavLink class="btn btn-sm btn-outline-secondary me-1" href="@($"orders/details?orderid={order.OrderId}")">
-                                        Details
-                                    </NavLink>
-
-                                    <!-- Delete Button -->
-                                    <NavLink class="btn btn-sm btn-outline-danger" href="@($"orders/delete?orderid={order.OrderId}")">
-                                        Delete
-                                    </NavLink>
+                                    <NavLink class="btn btn-sm btn-outline-primary me-1" href="@($"orders/edit?orderid={order.OrderId}")">Edit</NavLink>
+                                    <NavLink class="btn btn-sm btn-outline-secondary me-1" href="@($"orders/details?orderid={order.OrderId}")">Details</NavLink>
+                                    <NavLink class="btn btn-sm btn-outline-danger" href="@($"orders/delete?orderid={order.OrderId}")">Delete</NavLink>
                                 </div>
                             </td>
-
                         </tr>
                     }
                 </tbody>
             </table>
-
             <nav>
                 <ul class="pagination justify-content-center">
                     <li class="page-item @(currentPage == 1 ? "disabled" : "")">
                         <button class="page-link" @onclick="PreviousPage">❮</button>
                     </li>
-
                     @for (int i = 1; i <= totalPages; i++)
                     {
                         <li class="page-item @(currentPage == i ? "active" : "")">
                             <button class="page-link" @onclick="() => GoToPage(i)">@i</button>
                         </li>
                     }
-
                     <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
                         <button class="page-link" @onclick="NextPage">❯</button>
                     </li>
@@ -104,108 +89,45 @@
     private int currentPage = 1;
     private int pageSize = 8;
     private int totalPages;
-    private bool isRendered = false;
     private HubConnection? hubConnection;
-
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            // Kết nối đến SignalR Hub
-            hubConnection = new HubConnectionBuilder()
-                .WithUrl(NavigationManager.ToAbsoluteUri("/orderHub"))
-                .WithAutomaticReconnect()
-                .Build();
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/orderHub"))
+            .WithAutomaticReconnect()
+            .Build();
 
-            // Lắng nghe sự kiện OrderCreated
-            hubConnection.On<int>("OrderCreated", async (orderId) =>
-            {
-                Console.WriteLine($"Order {orderId} created successfully.");
-                await LoadOrdersAsync(currentPage);
-                totalOrders = await OrderService.GetTotalOrdersAsync(); 
-                await InvokeAsync(StateHasChanged); 
-            });
-            hubConnection.On<int>("SpecificOrderUpdated", async (orderId) =>
-        {
-            await JSRuntime.InvokeVoidAsync("console.log", $"📡 Received update notification for Order ID {orderId}");
-           
-           
-            await LoadOrdersUpdateAsync(orderId); 
-           
-            await LoadOrdersAsync(currentPage); 
-            await InvokeAsync(StateHasChanged);
-              NavigationManager.NavigateTo(NavigationManager.Uri, true);
-        });
-
-            await hubConnection.StartAsync();
-            Console.WriteLine("SignalR connection established.");  
-
-            // Tải tổng số đơn hàng và tính số trang
-            totalOrders = await OrderService.GetTotalOrdersAsync();
-            totalPages = (int)Math.Ceiling(totalOrders / (decimal)pageSize);
-            await LoadOrdersAsync(currentPage);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error establishing SignalR connection: {ex.Message}");  
-        }
-    }
-
-
-
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+        hubConnection.On<int>("OrderCreated", async (orderId) => await RefreshOrders());
+        hubConnection.On<Order>("OrderUpdated", async (updatedOrder) =>
     {
-        if (firstRender)
-        {
-            isRendered = true;
-            await JSRuntime.InvokeVoidAsync("console.log", "Component Rendered Successfully!");
-        }
+    Console.WriteLine($"Order {updatedOrder.OrderId} updated.");
+
+    
+    orders = orders.Select(o => o.OrderId == updatedOrder.OrderId ? updatedOrder : o).ToList();
+
+    await InvokeAsync(StateHasChanged);
+    });
+
+        await hubConnection.StartAsync();
+        Console.WriteLine("SignalR connection established.");
+
+        await RefreshOrders();
     }
-    private async Task LoadOrdersUpdateAsync(int orderId)
+
+    private async Task RefreshOrders()
     {
-        var updatedOrder = await OrderService.GetOrderByIdAsync(orderId);
-
-        var orderToUpdate = orders.FirstOrDefault(o => o.OrderId == orderId);
-
-        if (orderToUpdate != null && updatedOrder != null)
-        {
-            // Update the fields of the order
-            orderToUpdate.Freight = updatedOrder.Freight;
-            orderToUpdate.OrderDate = updatedOrder.OrderDate;
-            orderToUpdate.RequiredDate = updatedOrder.RequiredDate;
-            orderToUpdate.ShippedDate = updatedOrder.ShippedDate;
-            orderToUpdate.MemberId = updatedOrder.MemberId;
-
-            Console.WriteLine($"Updated Order ID {orderId}: Freight updated to {updatedOrder.Freight}");
-        }
-        else
-        {
-            Console.WriteLine($"Order {orderId} not found in the current list.");
-        }
-
-        // Refresh the list and trigger the UI update
-        orders = await OrderService.GetPagedOrdersAsync(currentPage, pageSize);
-        await InvokeAsync(StateHasChanged);  // Ensure the UI updates
+        Console.WriteLine("RefreshPage");
+        totalOrders = await OrderService.GetTotalOrdersAsync();
+        totalPages = (int)Math.Ceiling(totalOrders / (decimal)pageSize);
+        await LoadOrdersAsync(currentPage);
     }
-
-
-
-
-
-
 
     private async Task LoadOrdersAsync(int pageNumber)
     {
         orders = await OrderService.GetPagedOrdersAsync(pageNumber, pageSize);
         currentPage = pageNumber;
-
-        if (isRendered)
-        {
-            await JSRuntime.InvokeVoidAsync("console.log", $"Loaded Page {pageNumber}");
-            await InvokeAsync(StateHasChanged);
-        }
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task PreviousPage()
