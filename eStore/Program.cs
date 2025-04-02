@@ -72,6 +72,8 @@ builder.Services.AddTransient<IOrderDetailService, OrderDetailService>();
 builder.Services.AddTransient<ISalesReportService, SalesReportService>();
 builder.Services.AddTransient<IMemberRepository, MemberRepository>();
 builder.Services.AddTransient<IAuthService, AuthService>();
+builder.Services.AddTransient<ICategoryRepository, CategoryRepository>();
+builder.Services.AddTransient<ICategoryService, CategoryService>();
 
 // SignalR
 builder.Services.AddSignalR();

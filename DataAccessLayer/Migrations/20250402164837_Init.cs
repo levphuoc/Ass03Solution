@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace DataAccessLayer.Migrations
 {
     /// <inheritdoc />
-    public partial class IntDb : Migration
+    public partial class Init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -162,6 +162,27 @@ namespace DataAccessLayer.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "TracingOrders",
+                columns: table => new
+                {
+                    TracingOrderId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    OrderStatus = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    MemberId = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    OrderId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TracingOrders", x => x.TracingOrderId);
+                    table.ForeignKey(
+                        name: "FK_TracingOrders_Orders_OrderId",
+                        column: x => x.OrderId,
+                        principalTable: "Orders",
+                        principalColumn: "OrderId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_CartDetails_ProductId",
                 table: "CartDetails",
@@ -186,6 +207,11 @@ namespace DataAccessLayer.Migrations
                 name: "IX_Products_CategoryId",
                 table: "Products",
                 column: "CategoryId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TracingOrders_OrderId",
+                table: "TracingOrders",
+                column: "OrderId");
         }
 
         /// <inheritdoc />
@@ -198,19 +224,22 @@ namespace DataAccessLayer.Migrations
                 name: "OrderDetails");
 
             migrationBuilder.DropTable(
-                name: "Carts");
+                name: "TracingOrders");
 
             migrationBuilder.DropTable(
-                name: "Orders");
+                name: "Carts");
 
             migrationBuilder.DropTable(
                 name: "Products");
 
             migrationBuilder.DropTable(
-                name: "Members");
+                name: "Orders");
 
             migrationBuilder.DropTable(
                 name: "Categories");
+
+            migrationBuilder.DropTable(
+                name: "Members");
         }
     }
 }

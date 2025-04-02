@@ -73,43 +73,66 @@ else
 
     @if (isEditing)
     {
-        <EditForm Model="selectedMember" OnValidSubmit="SaveMember">
-            <DataAnnotationsValidator />
-            <div>
-                <label>Email:</label>
-                <InputText @bind-Value="selectedMember.Email" class="form-control" />
-            </div>
-            <div>
-                <label>Company:</label>
-                <InputText @bind-Value="selectedMember.CompanyName" class="form-control" />
-            </div>
-            <div>
-                <label>City:</label>
-                <InputText @bind-Value="selectedMember.City" class="form-control" />
-            </div>
-            <div>
-                <label>Country:</label>
-                <InputText @bind-Value="selectedMember.Country" class="form-control" />
-            </div>
-            <div>
-                <label>Password:</label>
-                <InputText @bind-Value="selectedMember.Password" class="form-control" type="password" />
-            </div>
-            @if (AuthService.IsInRole("Admin"))
-            {
-                <div>
-                    <label>Role:</label>
-                    <InputSelect @bind-Value="selectedMember.Role" class="form-control">
-                        <option value="User">User</option>
-                        <option value="Member">Member</option>
-                        <option value="Staff">Staff</option>
-                        <option value="Admin">Admin</option>
-                    </InputSelect>
+        <div class="modal fade show" style="display: block; background-color: rgba(0,0,0,0.5);" tabindex="-1" role="dialog">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">@(selectedMember.MemberId == 0 ? "Add New Member" : "Edit Member")</h5>
+                        <button type="button" class="btn-close" @onclick="CancelEdit"></button>
+                    </div>
+                    <div class="modal-body">
+
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger mb-3">
+                                <i class="fas fa-exclamation-circle me-2"></i>
+                                @errorMessage
+                            </div>
+                        }
+
+                        <EditForm Model="selectedMember" OnValidSubmit="SaveMember">
+                            <DataAnnotationsValidator />
+                            <div class="mb-3">
+                                <label>Email:</label>
+                                <InputText @bind-Value="selectedMember.Email" class="form-control" />
+                            </div>
+                            <div class="mb-3">
+                                <label>Company:</label>
+                                <InputText @bind-Value="selectedMember.CompanyName" class="form-control" />
+                            </div>
+                            <div class="mb-3">
+                                <label>City:</label>
+                                <InputText @bind-Value="selectedMember.City" class="form-control" />
+                            </div>
+                            <div class="mb-3">
+                                <label>Country:</label>
+                                <InputText @bind-Value="selectedMember.Country" class="form-control" />
+                            </div>
+                            <div class="mb-3">
+                                <label>Password:</label>
+                                <InputText @bind-Value="selectedMember.Password" class="form-control" type="password" />
+                            </div>
+                            @if (AuthService.IsInRole("Admin"))
+                            {
+                                <div class="mb-3">
+                                    <label>Role:</label>
+                                    <InputSelect @bind-Value="selectedMember.Role" class="form-control">
+                                        <option value="User">User</option>
+                                        <option value="Member">Member</option>
+                                        <option value="Staff">Staff</option>
+                                        <option value="Admin">Admin</option>
+                                    </InputSelect>
+                                </div>
+                            }
+                            <div class="modal-footer">
+                                <button type="submit" class="btn btn-primary">Save</button>
+                                <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+                            </div>
+                        </EditForm>
+                    </div>
                 </div>
-            }
-            <button type="submit" class="btn btn-primary" @onclick="@SaveMember">Save</button>
-            <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
-        </EditForm>
+            </div>
+        </div>
     }
 
     @if (showDeleteConfirm)
@@ -163,6 +186,8 @@ else
     private bool isEditing = false;
     private bool showDeleteConfirm = false;
     private bool adminDeleteConfirmed = false;
+    private string errorMessage;
+    private bool isLoading = true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -175,8 +200,21 @@ else
 
     private async Task LoadMembers()
     {
-        members = (await MemberService.GetMembersAsync()).ToList();
-        StateHasChanged();
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+            members = (await MemberService.GetMembersAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load members: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
     }
 
     private void RedirectToLogin()
@@ -233,36 +271,38 @@ else
     {
         try
         {
+            errorMessage = null; // Reset lỗi trước khi thực hiện
             if (selectedMember.MemberId == 0)
             {
-                // Add new member
                 await MemberService.AddMemberAsync(selectedMember);
             }
             else
             {
-                // For update, create a fresh copy of the member object
                 var memberToUpdate = new Member
-                {
-                    MemberId = selectedMember.MemberId,
-                    Email = selectedMember.Email,
-                    CompanyName = selectedMember.CompanyName,
-                    City = selectedMember.City,
-                    Country = selectedMember.Country,
-                    Password = selectedMember.Password,
-                    Role = selectedMember.Role
-                };
-                
+                    {
+                        MemberId = selectedMember.MemberId,
+                        Email = selectedMember.Email,
+                        CompanyName = selectedMember.CompanyName,
+                        City = selectedMember.City,
+                        Country = selectedMember.Country,
+                        Password = selectedMember.Password,
+                        Role = selectedMember.Role
+                    };
+
                 await MemberService.UpdateMemberAsync(memberToUpdate);
             }
 
-            // Refresh the members list
             await LoadMembers();
             isEditing = false;
         }
         catch (Exception ex)
         {
+            errorMessage = ex.Message; // Hiển thị lỗi từ service
             Console.WriteLine($"Error saving member: {ex.Message}");
-            // You could add error handling UI here if needed
+        }
+        finally
+        {
+            StateHasChanged();
         }
     }
 
@@ -271,13 +311,13 @@ else
         if (AuthService.IsInRole("Admin"))
         {
             var memberToDelete = members.FirstOrDefault(m => m.MemberId == id);
-            
+
             // Check if trying to delete Admin without confirmation
             if (memberToDelete?.Role == "Admin" && !adminDeleteConfirmed)
             {
                 return;
             }
-            
+
             await MemberService.DeleteMemberAsync(id);
             await LoadMembers();
             showDeleteConfirm = false;
@@ -288,5 +328,6 @@ else
     private void CancelEdit()
     {
         isEditing = false;
+        StateHasChanged();
     }
 }
