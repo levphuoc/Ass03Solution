@@ -126,5 +126,41 @@ namespace BLL.Services
                 throw new ArgumentException($"Email '{email}' is already in use. Please use a different email.");
             }
         }
+
+        public async Task<bool> UpdateProfileAsync(int memberId, string companyName, string city, string email, string password)
+        {
+            try
+            {
+                // Get the current member
+                var member = await _memberRepository.GetByIdAsync(memberId);
+                if (member == null)
+                {
+                    return false;
+                }
+
+                // Update the fields
+                member.CompanyName = companyName;
+                member.City = city;
+                member.Email = email;
+                
+                // Only update password if it's provided
+                if (!string.IsNullOrWhiteSpace(password))
+                {
+                    member.Password = password;
+                }
+
+                // Save changes
+                await _memberRepository.UpdateAsync(member);
+                
+                // Notify clients if needed
+                // await _hubContext.Clients.All.SendAsync("ReceiveUpdate");
+                
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
     }
 }
