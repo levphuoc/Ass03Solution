@@ -72,7 +72,7 @@
                 </div>
             }
 
-            @if (currentRoles.Contains("Staff"))
+            @if (currentRoles.Contains("Staff") && !currentRoles.Contains("Admin"))
             {
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="ordersStaff">
@@ -81,7 +81,7 @@
                 </div>
             }
 
-            @if (currentRoles.Contains("Deliverer") || currentRoles.Contains("Admin"))
+            @if (currentRoles.Contains("Deliverer") && !currentRoles.Contains("Admin"))
             {
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="ordersShipper">
@@ -90,11 +90,20 @@
                 </div>
             }
 
-            @if (currentRoles.Contains("Shipped") || currentRoles.Contains("Staff") || currentRoles.Contains("Deliverer"))
+            @if (currentRoles.Contains("User") && !currentRoles.Contains("Admin"))
             {
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="orders">
-                        <span class="bi bi-box-nav-menu" aria-hidden="true"></span> Order
+                        <span class="bi bi-box-nav-menu" aria-hidden="true"></span> My Orders
+                    </NavLink>
+                </div>
+            }
+
+            @if (currentRoles.Contains("Admin"))
+            {
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="orders">
+                        <span class="bi bi-box-nav-menu" aria-hidden="true"></span> Orders Management
                     </NavLink>
                 </div>
             }

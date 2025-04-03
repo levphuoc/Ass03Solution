@@ -57,13 +57,20 @@ namespace BLL.Services
      int pageSize,
      string? searchText = null,
      DateTime? orderDate = null,
-     string? status = null)
+     string? status = null,
+     int? memberId = null)
         {
             // Lấy toàn bộ Orders từ Repository
             var orders = await _unitOfWork.Orders.GetAllAsync(); // Lấy dữ liệu từ Repository dưới dạng IEnumerable
 
             // Chuyển dữ liệu sang IQueryable để có thể lọc
             var query = orders.AsQueryable();
+
+            // Filter by MemberId if provided
+            if (memberId.HasValue)
+            {
+                query = query.Where(o => o.MemberId == memberId.Value);
+            }
 
             // Tìm kiếm theo OrderId hoặc Freight
             if (!string.IsNullOrEmpty(searchText))
@@ -158,7 +165,7 @@ namespace BLL.Services
 
             
             await _trackingOrderService.AddTracingOrderAsync(trackingOrderDto);
-            await _cartService.DeleteCartAndItemsByUserIdAsync(dto.MemberId);
+            await _cartService.DeleteCartAfterOrderCreateAsync(dto.MemberId);
             return order.OrderId;
         }
 

@@ -125,6 +125,8 @@
             </div>
         </div>
     }
+
+   
 </div>
 
 @code {
@@ -146,7 +148,7 @@
         {
             if (currentUser != null)
             {
-                cart = await CartService.GetCartAsync(currentUser.MemberId, currentUser.Role);
+                cart = await CartService.GetCartAsync(currentUser.MemberId);
             }
         }
         catch (Exception ex)
@@ -171,8 +173,7 @@
             cart = await CartService.UpdateCartItemAsync(
                 currentUser.MemberId, 
                 productId, 
-                quantity, 
-                currentUser.Role);
+                quantity);
         }
         catch (Exception ex)
         {
@@ -213,8 +214,7 @@
             {
                 cart = await CartService.RemoveFromCartAsync(
                     currentUser.MemberId, 
-                    productId, 
-                    currentUser.Role);
+                    productId);
             }
         }
         catch (Exception ex)
@@ -232,7 +232,7 @@
         {
             if (await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to clear your cart?"))
             {
-                await CartService.ClearCartAsync(currentUser.MemberId, currentUser.Role);
+                await CartService.ClearCartAsync(currentUser.MemberId);
                 cart = new CartDTO();
             }
         }
@@ -261,4 +261,6 @@
         
         return originalUrl;
     }
+
+    
 } 

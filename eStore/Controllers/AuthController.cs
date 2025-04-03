@@ -64,10 +64,6 @@ namespace eStore.Controllers
                     <title>Logging out...</title>
                     <script>
                         function completeLogout() {
-                            // Clear any client-side state
-                            localStorage.clear();
-                            sessionStorage.clear();
-                            
                             // Redirect with cache-busting parameter
                             window.location.href = '/?v=' + new Date().getTime();
                         }
