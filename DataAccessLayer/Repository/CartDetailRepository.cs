@@ -28,6 +28,7 @@ namespace DataAccessLayer.Repository
             if (cart == null)
             {
                 return new List<CartDetail>();
+                Console.WriteLine("ccc");
             }
 
           

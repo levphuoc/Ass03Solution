@@ -10,7 +10,7 @@ namespace DataAccessLayer.Entities
     public class CartDetail
     {
         [Required]
-        [Key]
+        
         public int CartId { get; set; }
 
         [Required]
