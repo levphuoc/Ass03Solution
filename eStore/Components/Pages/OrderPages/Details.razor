@@ -32,7 +32,8 @@ else
         <dd class="col-sm-10">@OrderModel.ShippedDate.ToShortDateString()</dd>
 
         <dt class="col-sm-2">Freight</dt>
-        <dd class="col-sm-10">@OrderModel.Freight</dd>
+        
+        <dd class="col-sm-10">@((decimal)OrderModel.Freight % 1 == 0 ? ((decimal)OrderModel.Freight).ToString("0") : ((decimal)OrderModel.Freight).ToString("0.##")) kg</dd>
     </dl>
 
     <h4 class="mt-4">🧾 Order Details</h4>
@@ -57,9 +58,14 @@ else
                 {
                     <tr>
                         <td>@item.ProductName</td>
-                        <td>@item.UnitPrice.ToString("C")</td>
+                       
+                        <td>@(item.UnitPrice % 1 == 0 ? item.UnitPrice.ToString("C0") : item.UnitPrice.ToString("C"))</td>
+
                         <td>@item.Quantity</td>
-                        <td>@((item.UnitPrice * item.Quantity * (1 - (decimal)item.Discount)).ToString("C"))</td>
+                       <td>@(item.UnitPrice * item.Quantity * (1 - (decimal)item.Discount) % 1 == 0
+    ? $"${(item.UnitPrice * item.Quantity * (1 - (decimal)item.Discount)):0}"
+    : $"${(item.UnitPrice * item.Quantity * (1 - (decimal)item.Discount)):0.##}")</td>
+
                     </tr>
                 }
             </tbody>

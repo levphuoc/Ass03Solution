@@ -1,6 +1,7 @@
 ﻿using BLL.DTOs;
 using BLL.Services.IServices;
 using DataAccessLayer.Entities;
+using DataAccessLayer.Enum;
 using DataAccessLayer.UnitOfWork;
 using System;
 using System.Collections.Generic;
@@ -43,13 +44,23 @@ namespace BLL.Services
         }
         public async Task<List<Order>> GetPagedOrdersAsync(int pageNumber, int pageSize, string status)
         {
+            // Chuyển đổi chuỗi status thành OrderStatus enum nếu có thể
+            OrderStatus? orderStatus = null;
+            if (status != "ALL" && Enum.TryParse(status, true, out OrderStatus parsedStatus))
+            {
+                orderStatus = parsedStatus;
+            }
+
             // Lấy tất cả đơn hàng nếu trạng thái là "ALL", hoặc chỉ lấy các đơn hàng có trạng thái tương ứng
-            var predicate = status == "ALL" ? _ => true : (Expression<Func<Order, bool>>)(o => o.Status.ToLower() == status.ToLower());
+            var predicate = orderStatus == null
+                ? (Expression<Func<Order, bool>>)(_ => true)
+                : (Expression<Func<Order, bool>>)(o => o.Status == orderStatus);
 
             var (orders, totalCount) = await _unitOfWork.Orders.GetPagedAsync(pageNumber, pageSize, predicate, query => query.OrderByDescending(o => o.OrderDate));
 
             return orders.ToList();
         }
+
 
 
         public async Task<int> CreateOrderAsync(OrderDTO dto)
@@ -63,7 +74,7 @@ namespace BLL.Services
                 Freight = dto.Freight
             };
 
-            order.Status = "SPENDING";
+            order.Status = DataAccessLayer.Enum.OrderStatus.Spending;
             // Thêm Order vào cơ sở dữ liệu
             await _unitOfWork.Orders.AddAsync(order);
             await _unitOfWork.SaveChangesAsync();
@@ -112,7 +123,37 @@ namespace BLL.Services
             await _unitOfWork.Orders.DeleteAsync(orderId);
             await _unitOfWork.SaveChangesAsync();
         }
-        
+
+        private async Task UpdateOrderStatusAsync(int orderId, OrderStatus newStatus)
+        {
+           
+            var order = await _unitOfWork.Orders.GetByIdAsync(orderId);
+
+            if (order == null) throw new KeyNotFoundException("Order not found.");      
+            order.Status = newStatus;
+            await _unitOfWork.Orders.UpdateAsync(order);
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        public async Task ApproveOrderAsync(int orderId)
+        {
+            await UpdateOrderStatusAsync(orderId, OrderStatus.Approve);
+        }
+
+        public async Task RejectOrderAsync(int orderId)
+        {
+            await UpdateOrderStatusAsync(orderId, OrderStatus.Reject);
+        }
+
+        public async Task ShippingOrderAsync(int orderId)
+        {
+            await UpdateOrderStatusAsync(orderId, OrderStatus.Shipping);
+        }
+
+        public async Task ShippedOrderAsync(int orderId)
+        {
+            await UpdateOrderStatusAsync(orderId, OrderStatus.Shipped);
+        }
 
     }
 }

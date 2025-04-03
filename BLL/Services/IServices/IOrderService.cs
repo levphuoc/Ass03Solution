@@ -1,5 +1,7 @@
-﻿using BLL.DTOs;
+﻿
+using BLL.DTOs;
 using DataAccessLayer.Entities;
+using DataAccessLayer.Enum;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,5 +18,15 @@ namespace BLL.Services.IServices
         Task<OrderDTO> GetOrderByIdAsync(int orderId); 
         Task UpdateOrderAsync(OrderDTO order);
         Task DeleteOrderAsync(int orderId);
+        Task ApproveOrderAsync(int orderId);
+
+
+        Task RejectOrderAsync(int orderId);
+
+
+        Task ShippingOrderAsync(int orderId);
+
+        Task ShippedOrderAsync(int orderId);
+
     }
 }

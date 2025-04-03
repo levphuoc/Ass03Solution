@@ -39,8 +39,9 @@
                     <option value="ALL">All</option>
                     <option value="spending">Spending</option>
                     <option value="approve">Approve</option>
+                    <option value="reject">Reject</option>
+                    <option value="shipping">Shipping</option>
                     <option value="shipped">Shipped</option>
-                    
                 </select>
 
 
@@ -65,6 +66,7 @@
                         <th>Freight</th>
                         <th>Status</th>
                         <th>Actions</th>
+                        <th>Next Status</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -75,21 +77,32 @@
                             <td>@order.OrderDate.ToShortDateString()</td>
                             <td>@(order.RequiredDate?.ToShortDateString() ?? "N/A")</td>
                             <td>@(order.ShippedDate?.ToShortDateString() ?? "N/A")</td>
-                            <td>@order.Freight</td>
+                            <td>@((decimal)order.Freight % 1 == 0 ? ((decimal)order.Freight).ToString("0") : ((decimal)order.Freight).ToString("0.##")) kg</td>
+
                             <td>
-                                @if (order.Status.ToLower() == "spending")
+                                @switch (order.Status)
                                 {
-                                    <span class="badge bg-warning">@order.Status.ToUpper()</span> <!-- Màu vàng cho spending -->
-                                }
-                                else if (order.Status.ToLower() == "approve")
-                                {
-                                    <span class="badge bg-success">@order.Status.ToUpper()</span> <!-- Màu xanh lá cho approve -->
-                                }
-                                else if (order.Status.ToLower() == "shipped")
-                                {
-                                    <span class="badge bg-primary">@order.Status.ToUpper()</span> <!-- Màu xanh dương cho shipped -->
+                                    case DataAccessLayer.Enum.OrderStatus.Spending:
+                                        <span class="badge bg-warning">@order.Status.ToString().ToUpper()</span> <!-- Màu vàng cho Spending -->
+                                        break;
+                                    case DataAccessLayer.Enum.OrderStatus.Approve:
+                                        <span class="badge bg-success">@order.Status.ToString().ToUpper()</span> <!-- Màu xanh lá cho Approve -->
+                                        break;
+                                    case DataAccessLayer.Enum.OrderStatus.Reject:
+                                        <span class="badge bg-danger">@order.Status.ToString().ToUpper()</span> <!-- Màu đỏ cho Reject -->
+                                        break;
+                                    case DataAccessLayer.Enum.OrderStatus.Shipping:
+                                        <span class="badge bg-info">@order.Status.ToString().ToUpper()</span> <!-- Màu xanh nước biển nhạt cho Shipping -->
+                                        break;
+                                    case DataAccessLayer.Enum.OrderStatus.Shipped:
+                                        <span class="badge bg-primary">@order.Status.ToString().ToUpper()</span> <!-- Màu xanh dương cho Shipped -->
+                                        break;
+                                    default:
+                                        <span class="badge bg-secondary">@order.Status.ToString().ToUpper()</span> <!-- Màu xám cho trạng thái không xác định -->
+                                        break;
                                 }
                             </td>
+
 
                             <td>
                                 <div class="d-flex gap-2 justify-content-center">
@@ -98,6 +111,33 @@
                                     <NavLink class="btn btn-sm btn-outline-danger" href="@($"orders/delete?orderid={order.OrderId}")">Delete</NavLink>
                                 </div>
                             </td>
+
+                            <!-- Cột mới dành cho thay đổi trạng thái đơn hàng -->
+                            <td>
+                                <div class="d-flex gap-2 justify-content-center">
+                                    <!-- Approve Button -->
+                                    @if (order.Status == DataAccessLayer.Enum.OrderStatus.Spending)
+                                    {
+                                        <button class="btn btn-sm btn-outline-success me-1" @onclick="() => ApproveOrder(order.OrderId)">Approve</button>
+                                        <button class="btn btn-sm btn-outline-danger me-1" @onclick="() => RejectOrder(order.OrderId)">Reject</button>
+                                    }
+
+                                    <!-- Shipping Button -->
+                                    @if (order.Status == DataAccessLayer.Enum.OrderStatus.Approve)
+                                    {
+                                        <button class="btn btn-sm btn-outline-warning me-1" @onclick="() => ShippingOrder(order.OrderId)">Shipping</button>
+                                    }
+
+                                    <!-- Shipped Button -->
+                                    @if (order.Status == DataAccessLayer.Enum.OrderStatus.Shipping)
+                                    {
+                                        <button class="btn btn-sm btn-outline-primary" @onclick="() => ShippedOrder(order.OrderId)">Shipped</button>
+                                    }
+                                </div>
+                            </td>
+
+
+
                         </tr>
                     }
                 </tbody>
@@ -153,6 +193,31 @@
 
         await RefreshOrders();
     }
+    private async Task ApproveOrder(int orderId)
+    {
+        await OrderService.ApproveOrderAsync(orderId);
+        await RefreshOrders();  // Lấy lại danh sách đơn hàng sau khi thay đổi trạng thái
+    }
+
+    private async Task RejectOrder(int orderId)
+    {
+        await OrderService.RejectOrderAsync(orderId);
+        await RefreshOrders();  // Lấy lại danh sách đơn hàng sau khi thay đổi trạng thái
+    }
+
+    private async Task ShippingOrder(int orderId)
+    {
+        await OrderService.ShippingOrderAsync(orderId);
+        await RefreshOrders();  // Lấy lại danh sách đơn hàng sau khi thay đổi trạng thái
+    }
+
+    private async Task ShippedOrder(int orderId)
+    {
+        await OrderService.ShippedOrderAsync(orderId);
+        await RefreshOrders();  // Lấy lại danh sách đơn hàng sau khi thay đổi trạng thái
+    }
+
+
 
     private async Task RefreshOrders()
     {

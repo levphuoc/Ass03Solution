@@ -30,5 +30,10 @@ namespace BLL.Services
 
             }).ToList();
         }
+        public async Task<bool> CheckStockAvailabilityAsync(int productId, int quantity)
+        {
+            var product = await _unitOfWork.Products.GetByIdAsync(productId);
+            return product != null && product.UnitsInStock >= quantity;
+        }
     }
 }
