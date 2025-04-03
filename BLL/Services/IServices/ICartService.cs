@@ -9,10 +9,10 @@ namespace BLL.Services.IServices
 {
     public interface ICartService
     {
-        Task<CartDTO> GetCartAsync(int memberId);
-        Task<CartDTO> AddToCartAsync(int memberId, int productId, int quantity = 1);
-        Task<CartDTO> UpdateCartItemAsync(int memberId, int productId, int quantity);
-        Task<CartDTO> RemoveFromCartAsync(int memberId, int productId);
-        Task<bool> ClearCartAsync(int memberId);
+        Task<CartDTO> GetCartAsync(int memberId, string role);
+        Task<CartDTO> AddToCartAsync(int memberId, int productId, int quantity, string role);
+        Task<CartDTO> UpdateCartItemAsync(int memberId, int productId, int quantity, string role);
+        Task<CartDTO> RemoveFromCartAsync(int memberId, int productId, string role);
+        Task<bool> ClearCartAsync(int memberId, string role);
     }
 } 

@@ -146,7 +146,7 @@
         {
             if (currentUser != null)
             {
-                cart = await CartService.GetCartAsync(currentUser.MemberId);
+                cart = await CartService.GetCartAsync(currentUser.MemberId, currentUser.Role);
             }
         }
         catch (Exception ex)
@@ -168,7 +168,11 @@
         
         try
         {
-            cart = await CartService.UpdateCartItemAsync(currentUser.MemberId, productId, quantity);
+            cart = await CartService.UpdateCartItemAsync(
+                currentUser.MemberId, 
+                productId, 
+                quantity, 
+                currentUser.Role);
         }
         catch (Exception ex)
         {
@@ -207,7 +211,10 @@
         {
             if (await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to remove this item?"))
             {
-                cart = await CartService.RemoveFromCartAsync(currentUser.MemberId, productId);
+                cart = await CartService.RemoveFromCartAsync(
+                    currentUser.MemberId, 
+                    productId, 
+                    currentUser.Role);
             }
         }
         catch (Exception ex)
@@ -225,7 +232,7 @@
         {
             if (await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to clear your cart?"))
             {
-                await CartService.ClearCartAsync(currentUser.MemberId);
+                await CartService.ClearCartAsync(currentUser.MemberId, currentUser.Role);
                 cart = new CartDTO();
             }
         }
