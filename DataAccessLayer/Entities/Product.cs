@@ -27,7 +27,7 @@ namespace DataAccessLayer.Entities
         [Required]
         public int UnitsInStock { get; set; }
 
-        public Category Category { get; set; }
+        public Categories Category { get; set; }
 
         public ICollection<OrderDetail> OrderDetails { get; set; }
     }

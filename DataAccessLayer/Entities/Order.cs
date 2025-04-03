@@ -30,5 +30,6 @@ namespace DataAccessLayer.Entities
 
         public Member Member { get; set; }
         public ICollection<OrderDetail> OrderDetails { get; set; }
+        public virtual ICollection<TracingOrder> TracingOrders { get; set; }
     }
 }

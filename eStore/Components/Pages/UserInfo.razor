@@ -1,0 +1,373 @@
+@page "/userinfo"
+@using BLL.Services
+@using BLL.Services.IServices
+@using System.Security.Claims
+@using DataAccessLayer.Entities
+@using System.ComponentModel.DataAnnotations
+@inject IAuthService AuthService
+@inject IMemberService MemberService
+@inject IHttpContextAccessor HttpContextAccessor
+@rendermode InteractiveServer
+
+<PageTitle>User Information from Cookie</PageTitle>
+
+<div class="container mt-4">
+    <h1>User Information from Cookie</h1>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3>From HttpContext Claims</h3>
+                </div>
+                <div class="card-body">
+                    @if (HttpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated == true)
+                    {
+                        <div class="mb-3">
+                            <strong>Is Authenticated:</strong> 
+                            <span class="badge bg-success">Yes</span>
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>User ID:</strong> 
+                            @HttpContextAccessor.HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Email:</strong> 
+                            @HttpContextAccessor.HttpContext.User.Identity?.Name
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Company Name:</strong> 
+                            @HttpContextAccessor.HttpContext.User.FindFirst("CompanyName")?.Value
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Primary Role:</strong> 
+                            @HttpContextAccessor.HttpContext.User.FindFirst(c => c.Type == ClaimTypes.Role)?.Value
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Is Admin:</strong> 
+                            @(HttpContextAccessor.HttpContext.User.IsInRole("Admin") ? "Yes" : "No")
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Is Staff:</strong> 
+                            @(HttpContextAccessor.HttpContext.User.IsInRole("Staff") ? "Yes" : "No")
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>All Claims:</strong>
+                            <ul class="list-group mt-2">
+                                @foreach (var claim in HttpContextAccessor.HttpContext.User.Claims)
+                                {
+                                    <li class="list-group-item">
+                                        <strong>@claim.Type:</strong> @claim.Value
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning">
+                            Not authenticated. Please <a href="/login">login</a> to see your information.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6" @onclick="LoadDbUserInfo">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h3>From Database (Click to Load)</h3>
+                </div>
+                <div class="card-body">
+                    @if (loading)
+                    {
+                        <div class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p>Loading user data...</p>
+                        </div>
+                    }
+                    else if (currentUser != null)
+                    {
+                        <div class="mb-3">
+                            <strong>User ID:</strong> @currentUser.MemberId
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Email:</strong> @currentUser.Email
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Company Name:</strong> @currentUser.CompanyName
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>City:</strong> @currentUser.City
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Country:</strong> @currentUser.Country
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Role:</strong> @currentUser.Role
+                        </div>
+
+                        <div class="mb-3">
+                            <strong>Is Admin (from service):</strong> 
+                            @(AuthService.IsInRole("Admin") ? "Yes" : "No")
+                        </div>
+                    }
+                    else if (dbInfoClicked)
+                    {
+                        <div class="alert alert-warning">
+                            No user information available from database.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            Click this panel to load user info from database.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h3>Update Your Profile</h3>
+                </div>
+                <div class="card-body">
+                    @if (currentUser == null)
+                    {
+                        <div class="alert alert-info">
+                            Please load your profile information first by clicking on the "From Database" panel above.
+                        </div>
+                    }
+                    else
+                    {
+                        @if (updateSuccess)
+                        {
+                            <div class="alert alert-success">
+                                Profile updated successfully! Your changes have been saved.
+                            </div>
+                        }
+
+                        @if (updateError)
+                        {
+                            <div class="alert alert-danger">
+                                There was an error updating your profile. Please try again.
+                            </div>
+                        }
+
+                        <EditForm Model="profileModel" OnValidSubmit="UpdateProfile">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary />
+
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <InputText id="email" @bind-Value="profileModel.Email" class="form-control" />
+                                <ValidationMessage For="@(() => profileModel.Email)" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="companyName" class="form-label">Company Name</label>
+                                <InputText id="companyName" @bind-Value="profileModel.CompanyName" class="form-control" />
+                                <ValidationMessage For="@(() => profileModel.CompanyName)" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="city" class="form-label">City</label>
+                                <InputText id="city" @bind-Value="profileModel.City" class="form-control" />
+                                <ValidationMessage For="@(() => profileModel.City)" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Password (leave blank to keep current)</label>
+                                <InputText id="password" @bind-Value="profileModel.Password" type="password" class="form-control" />
+                                <ValidationMessage For="@(() => profileModel.Password)" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="confirmPassword" class="form-label">Confirm Password</label>
+                                <InputText id="confirmPassword" @bind-Value="profileModel.ConfirmPassword" type="password" class="form-control" />
+                                <ValidationMessage For="@(() => profileModel.ConfirmPassword)" />
+                                @if (!string.IsNullOrEmpty(passwordMatchError))
+                                {
+                                    <div class="text-danger">@passwordMatchError</div>
+                                }
+                            </div>
+
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-warning" disabled="@updating">
+                                    @if (updating)
+                                    {
+                                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                        <span> Updating...</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Update Profile</span>
+                                    }
+                                </button>
+                            </div>
+                        </EditForm>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private Member? currentUser;
+    private bool loading = false;
+    private bool dbInfoClicked = false;
+    private ProfileUpdateModel profileModel = new();
+    private bool updating = false;
+    private bool updateSuccess = false;
+    private bool updateError = false;
+    private string? passwordMatchError;
+
+    // Don't load data automatically on initialization
+    protected override async Task OnInitializedAsync()
+    {
+        // Only load data from claims, not from database
+    }
+
+    private async Task LoadDbUserInfo()
+    {
+        if (loading)
+            return;
+
+        try
+        {
+            dbInfoClicked = true;
+            loading = true;
+            StateHasChanged();
+
+            currentUser = await AuthService.GetCurrentUserAsync();
+            
+            // Initialize the update form with current values
+            if (currentUser != null)
+            {
+                profileModel = new ProfileUpdateModel
+                {
+                    Email = currentUser.Email,
+                    CompanyName = currentUser.CompanyName,
+                    City = currentUser.City,
+                    // Password is left blank intentionally
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading user data: {ex.Message}");
+        }
+        finally
+        {
+            loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task UpdateProfile()
+    {
+        try
+        {
+            // Reset status
+            updateSuccess = false;
+            updateError = false;
+            passwordMatchError = null;
+            
+            // Validate passwords match if provided
+            if (!string.IsNullOrEmpty(profileModel.Password) && 
+                profileModel.Password != profileModel.ConfirmPassword)
+            {
+                passwordMatchError = "Passwords do not match.";
+                return;
+            }
+
+            updating = true;
+            StateHasChanged();
+
+            // Get the current member ID
+            if (currentUser == null)
+            {
+                updateError = true;
+                return;
+            }
+
+            // Use the injected MemberService to update profile
+            var result = await MemberService.UpdateProfileAsync(
+                currentUser.MemberId,
+                profileModel.CompanyName,
+                profileModel.City,
+                profileModel.Email,
+                profileModel.Password
+            );
+
+            updateSuccess = result;
+            updateError = !result;
+
+            // Reload user data if successful
+            if (result)
+            {
+                // Also update the authentication cookie
+                await AuthService.UpdateProfileAsync(
+                    profileModel.CompanyName,
+                    profileModel.City,
+                    profileModel.Email,
+                    profileModel.Password
+                );
+                
+                await LoadDbUserInfo();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating profile: {ex.Message}");
+            updateError = true;
+        }
+        finally
+        {
+            updating = false;
+            StateHasChanged();
+        }
+    }
+
+    public class ProfileUpdateModel
+    {
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email format")]
+        [StringLength(100, ErrorMessage = "Email cannot exceed 100 characters")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Company name is required")]
+        [StringLength(40, ErrorMessage = "Company name cannot exceed 40 characters")]
+        public string CompanyName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "City is required")]
+        [StringLength(15, ErrorMessage = "City cannot exceed 15 characters")]
+        public string City { get; set; } = string.Empty;
+
+        [StringLength(30, ErrorMessage = "Password cannot exceed 30 characters")]
+        public string Password { get; set; } = string.Empty;
+
+        [StringLength(30, ErrorMessage = "Confirm password cannot exceed 30 characters")]
+        [Compare("Password", ErrorMessage = "Passwords do not match")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+} 

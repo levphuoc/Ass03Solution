@@ -27,6 +27,10 @@ namespace DataAccessLayer.Entities
         [Required, MaxLength(30)]
         public string Password { get; set; }
 
+        [Required, MaxLength(20)]
+        public string Role { get; set; } = "User"; // Default role is User
+
         public ICollection<Order> Orders { get; set; }
+        
     }
 }

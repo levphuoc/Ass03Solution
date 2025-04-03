@@ -1,0 +1,176 @@
+@page "/register"
+@using BLL.Services
+@using BLL.Services.IServices
+@using DataAccessLayer.Entities
+@using System.ComponentModel.DataAnnotations
+@inject IMemberService MemberService
+@inject NavigationManager NavigationManager
+@rendermode InteractiveServer
+
+<PageTitle>Register</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="text-center mb-0">Register New Member</h3>
+                </div>
+                <div class="card-body">
+                    <EditForm Model="@registerModel" OnValidSubmit="HandleRegistration" FormName="registerForm">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="email">Email:</label>
+                                    <InputText id="email" @bind-Value="registerModel.Email" class="form-control" />
+                                    <ValidationMessage For="@(() => registerModel.Email)" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="companyName">Company Name:</label>
+                                    <InputText id="companyName" @bind-Value="registerModel.CompanyName" class="form-control" />
+                                    <ValidationMessage For="@(() => registerModel.CompanyName)" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="city">City:</label>
+                                    <InputText id="city" @bind-Value="registerModel.City" class="form-control" />
+                                    <ValidationMessage For="@(() => registerModel.City)" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="country">Country:</label>
+                                    <InputText id="country" @bind-Value="registerModel.Country" class="form-control" />
+                                    <ValidationMessage For="@(() => registerModel.Country)" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="password">Password:</label>
+                                    <InputText id="password" @bind-Value="registerModel.Password" type="password" class="form-control" />
+                                    <ValidationMessage For="@(() => registerModel.Password)" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="confirmPassword">Confirm Password:</label>
+                                    <InputText id="confirmPassword" @bind-Value="registerModel.ConfirmPassword" type="password" class="form-control" />
+                                    <ValidationMessage For="@(() => registerModel.ConfirmPassword)" />
+                                </div>
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger">@errorMessage</div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(successMessage))
+                        {
+                            <div class="alert alert-success">
+                                @successMessage
+                                <a href="/login" class="alert-link">Click here to login</a>
+                            </div>
+                        }
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary w-100">Register</button>
+                        </div>
+
+                        <div class="text-center mt-3">
+                            <p>Already have an account? <a href="/login">Login here</a></p>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private RegisterModel registerModel = new();
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+
+    private async Task HandleRegistration()
+    {
+        // Check if passwords match
+        if (registerModel.Password != registerModel.ConfirmPassword)
+        {
+            errorMessage = "Passwords do not match";
+            return;
+        }
+
+        try
+        {
+            // Check if the email already exists
+            var members = await MemberService.GetMembersAsync();
+            if (members.Any(m => m.Email.Equals(registerModel.Email, StringComparison.OrdinalIgnoreCase)))
+            {
+                errorMessage = "Email already registered";
+                return;
+            }
+
+            // Create new member
+            var member = new Member
+            {
+                Email = registerModel.Email,
+                CompanyName = registerModel.CompanyName,
+                City = registerModel.City,
+                Country = registerModel.Country,
+                Password = registerModel.Password,
+                Role = "User" // Default role is User
+            };
+
+            await MemberService.AddMemberAsync(member);
+            
+            successMessage = "Registration successful!";
+            registerModel = new RegisterModel(); // Clear the form
+            errorMessage = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Registration failed: {ex.Message}";
+        }
+    }
+
+    private class RegisterModel
+    {
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email format")]
+        [StringLength(100, ErrorMessage = "Email cannot exceed 100 characters")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Company name is required")]
+        [StringLength(40, ErrorMessage = "Company name cannot exceed 40 characters")]
+        public string CompanyName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "City is required")]
+        [StringLength(15, ErrorMessage = "City cannot exceed 15 characters")]
+        public string City { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Country is required")]
+        [StringLength(15, ErrorMessage = "Country cannot exceed 15 characters")]
+        public string Country { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Password is required")]
+        [StringLength(30, MinimumLength = 6, ErrorMessage = "Password must be between 6 and 30 characters")]
+        public string Password { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Please confirm your password")]
+        [Compare("Password", ErrorMessage = "Passwords do not match")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+} 

@@ -12,6 +12,7 @@ namespace DataAccessLayer.Data
     {
         public EStoreDbContext(DbContextOptions<EStoreDbContext> options) : base(options)
         {
+            this.Database.EnsureCreated();
         }
         public DbSet<Member> Members { get; set; }
         public DbSet<Order> Orders { get; set; }
@@ -19,8 +20,8 @@ namespace DataAccessLayer.Data
         public DbSet<OrderDetail> OrderDetails { get; set; }
         public DbSet<Cart> Carts { get; set; }
         public DbSet<CartDetail> CartDetails { get; set; }
-
-
+        public DbSet<Categories> Categories { get; set; }
+        public DbSet<TracingOrder> TracingOrders { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -73,10 +74,10 @@ namespace DataAccessLayer.Data
             modelBuilder.Entity<OrderDetail>()
                 .HasKey(od => new { od.OrderId, od.ProductId });
 
-
             modelBuilder.Entity<CartDetail>()
                .Property(cd => cd.TotalPrice)
                .HasColumnType("decimal(18, 2)");
+            
         }
     }
 }
