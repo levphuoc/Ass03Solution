@@ -1,5 +1,4 @@
-﻿
-using BLL.Hubs;
+﻿using BLL.Hubs;
 using BLL.Services.IServices;
 using DataAccessLayer.Entities;
 using DataAccessLayer.Repository.Interfaces;
@@ -26,31 +25,23 @@ namespace BLL.Services
         private readonly IProductService _productService;
         private readonly ILogger<CartService> _logger;
         private const string CartKey = "estore_cart_";
-        private readonly ICartDetailRepository _cartDetailRepository;
         private readonly ICartRepository _cartRepository;
 
-        public CartService(IJSRuntime jsRuntime, IProductService productService, IUnitOfWork unitOfWork, ICartDetailRepository cartDetailRepository, ICartRepository cartRepository)
+        public CartService(IJSRuntime jsRuntime, IProductService productService, IUnitOfWork unitOfWork, ICartRepository cartRepository)
         {
             _jsRuntime = jsRuntime;
             _productService = productService;
             _unitOfWork = unitOfWork;
-            _cartDetailRepository = cartDetailRepository;
             _cartRepository = cartRepository;
         }
 
-        
-
-       
-        
-
-        public async Task<List<CartItem>> GetAllCartDetailById(int userId)
+        public async Task<List<CartItem>> GetAllCartItemsByUserId(int userId)
         {
             return await _cartRepository.GetCartItemsByCartIdAsync(userId);
         }
 
         public async Task DeleteCartAndItemsByUserIdAsync(int MemberId)
         {
-
             await _cartRepository.DeleteCartAndItemsByMemberIdAsync(MemberId);
         }
 
@@ -58,7 +49,7 @@ namespace BLL.Services
 
         private bool ShouldUseLocalStorage(string role)
         {
-            return role == "Admin" || role == "Staff" || role == "Member";
+            return role == "Admin" || role == "Staff" || role == "Deliverer";
         }
 
         public async Task<CartDTO> GetCartAsync(int memberId, string role)

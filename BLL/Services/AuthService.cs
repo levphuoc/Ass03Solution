@@ -47,14 +47,14 @@ namespace BLL.Services
             {
                 case "Admin":
                     claims.Add(new Claim(ClaimTypes.Role, "Staff"));
-                    claims.Add(new Claim(ClaimTypes.Role, "Member"));
+                    claims.Add(new Claim(ClaimTypes.Role, "Deliverer"));
                     claims.Add(new Claim(ClaimTypes.Role, "User"));
                     break;
                 case "Staff":
-                    claims.Add(new Claim(ClaimTypes.Role, "Member"));
+                    claims.Add(new Claim(ClaimTypes.Role, "Deliverer"));
                     claims.Add(new Claim(ClaimTypes.Role, "User"));
                     break;
-                case "Member":
+                case "Deliverer":
                     claims.Add(new Claim(ClaimTypes.Role, "User"));
                     break;
             }
@@ -150,14 +150,14 @@ namespace BLL.Services
                     {
                         case "Admin":
                             claims.Add(new Claim(ClaimTypes.Role, "Staff"));
-                            claims.Add(new Claim(ClaimTypes.Role, "Member"));
+                            claims.Add(new Claim(ClaimTypes.Role, "Deliverer"));
                             claims.Add(new Claim(ClaimTypes.Role, "User"));
                             break;
                         case "Staff":
-                            claims.Add(new Claim(ClaimTypes.Role, "Member"));
+                            claims.Add(new Claim(ClaimTypes.Role, "Deliverer"));
                             claims.Add(new Claim(ClaimTypes.Role, "User"));
                             break;
-                        case "Member":
+                        case "Deliverer":
                             claims.Add(new Claim(ClaimTypes.Role, "User"));
                             break;
                     }

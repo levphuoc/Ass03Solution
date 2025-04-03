@@ -210,7 +210,7 @@
         bool isAdmin = HttpContextAccessor.HttpContext?.User?.IsInRole("Admin") ?? false;
 
         
-        var cartItems = await CartService.GetAllCartDetailById(userId);
+        var cartItems = await CartService.GetAllCartItemsByUserId(userId);
 
         if (cartItems != null && cartItems.Any())
         {

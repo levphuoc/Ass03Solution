@@ -21,10 +21,10 @@
         <button class="btn btn-primary" @onclick="RedirectToLogin">Go to Login</button>
     </div>
 }
-else if (!AuthService.IsInRole("Admin") && !AuthService.IsInRole("Staff") && !AuthService.IsInRole("Member"))
+else if (!AuthService.IsInRole("Admin") && !AuthService.IsInRole("Staff") && !AuthService.IsInRole("Deliverer"))
 {
     <div class="alert alert-danger">
-        <p>You do not have permission to access this page. Only Administrators, Staff, and Members can view sales reports.</p>
+        <p>You do not have permission to access this page. Only Administrators, Staff, and Deliverers can view sales reports.</p>
         <button class="btn btn-primary" @onclick="RedirectToHome">Go to Home</button>
     </div>
 }
@@ -210,7 +210,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         currentUser = await AuthService.GetCurrentUserAsync();
-        if (currentUser != null && (AuthService.IsInRole("Admin") || AuthService.IsInRole("Staff") || AuthService.IsInRole("Member")))
+        if (currentUser != null && (AuthService.IsInRole("Admin") || AuthService.IsInRole("Staff") || AuthService.IsInRole("Deliverer")))
         {
             hubConnection = new HubConnectionBuilder()
                 .WithUrl(NavigationManager.ToAbsoluteUri("/salesReportHub"))

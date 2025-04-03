@@ -6,212 +6,203 @@
 @using DataAccessLayer.Enum
 @using Microsoft.AspNetCore.SignalR.Client
 @inject IOrderService OrderService
+@inject IAuthService AuthService
 @inject IJSRuntime JSRuntime
 @inject NavigationManager NavigationManager
 
 <PageTitle>Orders Dashboard</PageTitle>
 
-<div class="container mt-4">
-    <h1 class="mb-4 text-primary">📦My Orders</h1>
+@if (currentUser == null)
+{
+    <div class="alert alert-warning">
+        <p>You need to log in to access this page.</p>
+        <button class="btn btn-primary" @onclick="RedirectToLogin">Go to Login</button>
+    </div>
+}
+else
+{
+    <div class="container mt-4">
+        <h1 class="mb-4 text-primary">📦My Orders</h1>
 
-    <div class="row mb-4">
+        <div class="row mb-4">
 
-        <!-- Total Orders -->
-        <div class="col-md-4">
-            <div class="card bg-info text-white shadow-sm">
-                <div class="card-body">
-                    <h5 class="card-title">Total Orders</h5>
-                    <h2>@totalOrders</h2>
+            <!-- Total Orders -->
+            <div class="col-md-4">
+                <div class="card bg-info text-white shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Orders</h5>
+                        <h2>@totalOrders</h2>
+                    </div>
                 </div>
             </div>
+
+            <!-- Order Status -->
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header text-white bg-primary">
+                    <h5 class="mb-0">Search Orders</h5>
+                </div>
+                <div class="card-body">
+                    <form>
+                        <div class="row mb-3">
+                            <!-- Search Box -->
+                            <div class="col-md-4">
+                                <label for="searchText" class="form-label">Search Text</label>
+                                <input type="text" class="form-control" @bind="searchText" placeholder="Enter Order ID or Freight">
+                            </div>
+
+                            <!-- Date Picker -->
+                            <div class="col-md-4">
+                                <label for="datePicker" class="form-label">Date</label>
+                                <input type="date" class="form-control" @bind="orderDate">
+                            </div>
+
+                            <!-- Order Status Dropdown -->
+                            <div class="col-md-4">
+                                <label for="orderStatus" class="form-label">Order Status</label>
+                                <select class="form-select" @bind="selectedStatus">
+                                    <option value="ALL">All</option>
+                                    <option value="Spending">Spending</option>
+                                    <option value="Approve">Approve</option>
+                                    <option value="Reject">Reject</option>
+                                    <option value="Shipping">Shipping</option>
+                                    <option value="Shipped">Shipped</option>
+                                    <option value="Cancel">Cancel</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <!-- Reset Button -->
+                            <div class="col-md-2">
+                                <button type="button" class="btn btn-outline-secondary w-100" @onclick="ResetFilters">Reset Filters</button>
+                            </div>
+
+                            <!-- Search Button -->
+                            <div class="col-md-2">
+                                <button type="button" class="btn btn-primary w-100" @onclick="SearchOrders">Search</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+
+
+
         </div>
 
-        <!-- Order Status -->
 
-        <div class="card shadow-sm mb-4">
-            <div class="card-header text-white bg-primary">
-                <h5 class="mb-0">Search Orders</h5>
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Order List</h5>
             </div>
             <div class="card-body">
-                <form>
-                    <div class="row mb-3">
-                        <!-- Search Box -->
-                        <div class="col-md-4">
-                            <label for="searchText" class="form-label">Search Text</label>
-                            <input type="text" class="form-control" @bind="searchText" placeholder="Enter Order ID or Freight">
-                        </div>
-
-                        <!-- Date Picker -->
-                        <div class="col-md-4">
-                            <label for="datePicker" class="form-label">Date</label>
-                            <input type="date" class="form-control" @bind="orderDate">
-                        </div>
-
-                        <!-- Order Status Dropdown -->
-                        <div class="col-md-4">
-                            <label for="orderStatus" class="form-label">Order Status</label>
-                            <select class="form-select" @bind="selectedStatus">
-                                <option value="ALL">All</option>
-                                <option value="Spending">Spending</option>
-                                <option value="Approve">Approve</option>
-                                <option value="Reject">Reject</option>
-                                <option value="Shipping">Shipping</option>
-                                <option value="Shipped">Shipped</option>
-                                <option value="Cancel">Cancel</option>
-                            </select>
-                        </div>
+                @if (orders.Count == 0)
+                {
+                    <div class="alert alert-info">
+                        <p>You don't have any orders yet.</p>
                     </div>
+                }
+                else
+                {
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>OrderId</th>
+                                <th>Order Date</th>
+                                <th>Required Date</th>
+                                <th>Shipped Date</th>
+                                <th>Freight</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var order in orders)
+                            {
+                                <tr>
+                                    <td>#@order.OrderId</td>
+                                    <td>@order.OrderDate.ToShortDateString()</td>
+                                    <td>@(order.RequiredDate?.ToShortDateString() ?? "N/A")</td>
+                                    <td>@(order.ShippedDate?.ToShortDateString() ?? "N/A")</td>
+                                    <td>@((decimal)order.Freight % 1 == 0 ? ((decimal)order.Freight).ToString("0") : ((decimal)order.Freight).ToString("0.##")) kg</td>
 
-                    <div class="row mb-3">
-                        <!-- Reset Button -->
-                        <div class="col-md-2">
-                            <button type="button" class="btn btn-outline-secondary w-100" @onclick="ResetFilters">Reset Filters</button>
-                        </div>
+                                    <td>
+                                        @switch (order.Status)
+                                        {
+                                            case DataAccessLayer.Enum.OrderStatus.Spending:
+                                                <span class="badge bg-warning">@order.Status.ToString().ToUpper()</span> 
+                                                break;
+                                            case DataAccessLayer.Enum.OrderStatus.Approve:
+                                                <span class="badge bg-success">@order.Status.ToString().ToUpper()</span> 
+                                                break;
+                                            case DataAccessLayer.Enum.OrderStatus.Reject:
+                                                <span class="badge bg-danger">@order.Status.ToString().ToUpper()</span> 
+                                                break;
+                                            case DataAccessLayer.Enum.OrderStatus.Shipping:
+                                                <span class="badge bg-info">@order.Status.ToString().ToUpper()</span> 
+                                                break;
+                                            case DataAccessLayer.Enum.OrderStatus.Shipped:
+                                                <span class="badge bg-primary">@order.Status.ToString().ToUpper()</span> 
+                                                break;
+                                            case DataAccessLayer.Enum.OrderStatus.Cancel:
+                                                <span class="badge bg-dark">@order.Status.ToString().ToUpper()</span>
+                                                break;
+                                            default:
+                                                <span class="badge bg-secondary">@order.Status.ToString().ToUpper()</span> 
+                                                break;
+                                        }
+                                    </td>
 
-                        <!-- Search Button -->
-                        <div class="col-md-2">
-                            <button type="button" class="btn btn-primary w-100" @onclick="SearchOrders">Search</button>
-                        </div>
-                    </div>
-                </form>
+
+                                    <td>
+                                        <div class="d-flex gap-2 justify-content-center">
+
+                                            <!-- Edit Button -->
+                                            @if (order.Status == DataAccessLayer.Enum.OrderStatus.Spending ||
+                                            order.Status == DataAccessLayer.Enum.OrderStatus.Approve)
+                                            {
+                                                <NavLink class="btn btn-sm btn-outline-primary me-1" href="@($"orders/edit?orderid={order.OrderId}")">Edit</NavLink>
+                                            }
+
+                                            <!-- Details Button - Luôn luôn hiện -->
+                                            <NavLink class="btn btn-sm btn-outline-secondary me-1" href="@($"orders/details?orderid={order.OrderId}")">Details</NavLink>
+
+                                            <!-- Delete Button -->
+                                            @if (order.Status == DataAccessLayer.Enum.OrderStatus.Spending)
+                                            {
+                                                <NavLink class="btn btn-sm btn-outline-danger" href="@($"orders/delete?orderid={order.OrderId}")">Delete</NavLink>
+                                            }
+
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    <nav>
+                        <ul class="pagination justify-content-center">
+                            <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                                <button class="page-link" @onclick="PreviousPage">❮</button>
+                            </li>
+                            @for (int i = 1; i <= totalPages; i++)
+                            {
+                                <li class="page-item @(currentPage == i ? "active" : "")">
+                                    <button class="page-link" @onclick="() => GoToPage(i)">@i</button>
+                                </li>
+                            }
+                            <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                                <button class="page-link" @onclick="NextPage">❯</button>
+                            </li>
+                        </ul>
+                    </nav>
+                }
             </div>
         </div>
-
-
-
-
     </div>
-
-
-
-    <div class="card shadow-sm">
-        <div class="card-header bg-light">
-            <h5 class="mb-0">Order List</h5>
-        </div>
-        <div class="card-body">
-            <table class="table table-bordered">
-                <thead>
-                    <tr>
-                        <th>OrderId</th>
-                        <th>Order Date</th>
-                        <th>Required Date</th>
-                        <th>Shipped Date</th>
-                        <th>Freight</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                       
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var order in orders)
-                    {
-                        <tr>
-                            <td>#@order.OrderId</td>
-                            <td>@order.OrderDate.ToShortDateString()</td>
-                            <td>@(order.RequiredDate?.ToShortDateString() ?? "N/A")</td>
-                            <td>@(order.ShippedDate?.ToShortDateString() ?? "N/A")</td>
-                            <td>@((decimal)order.Freight % 1 == 0 ? ((decimal)order.Freight).ToString("0") : ((decimal)order.Freight).ToString("0.##")) kg</td>
-
-                            <td>
-                                @switch (order.Status)
-                                {
-                                    case DataAccessLayer.Enum.OrderStatus.Spending:
-                                        <span class="badge bg-warning">@order.Status.ToString().ToUpper()</span> 
-                                        break;
-                                    case DataAccessLayer.Enum.OrderStatus.Approve:
-                                        <span class="badge bg-success">@order.Status.ToString().ToUpper()</span> 
-                                        break;
-                                    case DataAccessLayer.Enum.OrderStatus.Reject:
-                                        <span class="badge bg-danger">@order.Status.ToString().ToUpper()</span> 
-                                        break;
-                                    case DataAccessLayer.Enum.OrderStatus.Shipping:
-                                        <span class="badge bg-info">@order.Status.ToString().ToUpper()</span> 
-                                        break;
-                                    case DataAccessLayer.Enum.OrderStatus.Shipped:
-                                        <span class="badge bg-primary">@order.Status.ToString().ToUpper()</span> 
-                                        break;
-                                    case DataAccessLayer.Enum.OrderStatus.Cancel:
-                                        <span class="badge bg-dark">@order.Status.ToString().ToUpper()</span>
-                                        break;
-                                    default:
-                                        <span class="badge bg-secondary">@order.Status.ToString().ToUpper()</span> 
-                                        break;
-                                }
-                            </td>
-
-
-                            <td>
-                                <div class="d-flex gap-2 justify-content-center">
-
-                                    <!-- Edit Button -->
-                                    @if (order.Status == DataAccessLayer.Enum.OrderStatus.Spending ||
-                                   order.Status == DataAccessLayer.Enum.OrderStatus.Approve)
-                                    {
-                                        <NavLink class="btn btn-sm btn-outline-primary me-1" href="@($"orders/edit?orderid={order.OrderId}")">Edit</NavLink>
-                                    }
-
-                                    <!-- Details Button - Luôn luôn hiện -->
-                                    <NavLink class="btn btn-sm btn-outline-secondary me-1" href="@($"orders/details?orderid={order.OrderId}")">Details</NavLink>
-
-                                    <!-- Delete Button -->
-                                    @if (order.Status == DataAccessLayer.Enum.OrderStatus.Spending)
-                                    {
-                                        <NavLink class="btn btn-sm btn-outline-danger" href="@($"orders/delete?orderid={order.OrderId}")">Delete</NavLink>
-                                    }
-
-                                </div>
-                            </td>
-
-
-                         
-                           @*  <td>
-                                <div class="d-flex gap-2 justify-content-center">
-                                 
-                                    @if (order.Status == DataAccessLayer.Enum.OrderStatus.Spending)
-                                    {
-                                        <button class="btn btn-sm btn-outline-success me-1" @onclick="() => ApproveOrder(order.OrderId)">Approve</button>
-                                        <button class="btn btn-sm btn-outline-danger me-1" @onclick="() => RejectOrder(order.OrderId)">Reject</button>
-                                    }
-
-                                  
-                                    @if (order.Status == DataAccessLayer.Enum.OrderStatus.Approve)
-                                    {
-                                        <button class="btn btn-sm btn-outline-warning me-1" @onclick="() => ShippingOrder(order.OrderId)">Shipping</button>
-                                    }
-
-                                  
-                                    @if (order.Status == DataAccessLayer.Enum.OrderStatus.Shipping)
-                                    {
-                                        <button class="btn btn-sm btn-outline-primary" @onclick="() => ShippedOrder(order.OrderId)">Shipped</button>
-                                    }
-                                </div>
-                            </td> *@
-
-
-
-                        </tr>
-                    }
-                </tbody>
-            </table>
-            <nav>
-                <ul class="pagination justify-content-center">
-                    <li class="page-item @(currentPage == 1 ? "disabled" : "")">
-                        <button class="page-link" @onclick="PreviousPage">❮</button>
-                    </li>
-                    @for (int i = 1; i <= totalPages; i++)
-                    {
-                        <li class="page-item @(currentPage == i ? "active" : "")">
-                            <button class="page-link" @onclick="() => GoToPage(i)">@i</button>
-                        </li>
-                    }
-                    <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
-                        <button class="page-link" @onclick="NextPage">❯</button>
-                    </li>
-                </ul>
-            </nav>
-        </div>
-    </div>
-</div>
+}
 
 @code {
     private List<Order> orders = new();
@@ -223,8 +214,16 @@
     private string selectedStatus = "ALL";
     private string searchText = string.Empty;
     private DateTime? orderDate = null;
+    private Member? currentUser;
+    
     protected override async Task OnInitializedAsync()
     {
+        currentUser = await AuthService.GetCurrentUserAsync();
+        if (currentUser == null)
+        {
+            return;
+        }
+
         hubConnection = new HubConnectionBuilder()
             .WithUrl(NavigationManager.ToAbsoluteUri("/orderHub"))
             .WithAutomaticReconnect()
@@ -232,27 +231,29 @@
 
         hubConnection.On<int>("OrderCreated", async (orderId) => await RefreshOrders());
         hubConnection.On<Order>("OrderUpdated", async (updatedOrder) =>
-    {    
-        orders = orders.Select(o => o.OrderId == updatedOrder.OrderId ? updatedOrder : o).ToList();
-
-        await InvokeAsync(StateHasChanged);
-    });
-        hubConnection.On<int, string>("ReceiveStatusChange", async (orderId, newStatus) =>
+        {    
+            if (updatedOrder.MemberId == currentUser.MemberId)
             {
-                var order = orders.FirstOrDefault(o => o.OrderId == orderId);
-                if (order != null && Enum.TryParse<OrderStatus>(newStatus, out var updatedStatus))
-                {
-                    order.Status = updatedStatus;
-
-                }
+                orders = orders.Select(o => o.OrderId == updatedOrder.OrderId ? updatedOrder : o).ToList();
                 await InvokeAsync(StateHasChanged);
-            });
+            }
+        });
+        hubConnection.On<int, string>("ReceiveStatusChange", async (orderId, newStatus) =>
+        {
+            var order = orders.FirstOrDefault(o => o.OrderId == orderId);
+            if (order != null && Enum.TryParse<OrderStatus>(newStatus, out var updatedStatus))
+            {
+                order.Status = updatedStatus;
+                await InvokeAsync(StateHasChanged);
+            }
+        });
 
         await hubConnection.StartAsync();
         Console.WriteLine("SignalR connection established.");
 
         await RefreshOrders();
     }
+    
     private async Task SearchOrders()
     {
         currentPage = 1;
@@ -265,32 +266,43 @@
         orderDate = null;
         selectedStatus = "ALL";
         SearchOrders();
-        //orders.Clear();
     }
+    
     private async Task RefreshOrders()
     {
+        if (currentUser == null)
+        {
+            return;
+        }
+        
         Console.WriteLine("RefreshPage");
-        totalOrders = await OrderService.GetTotalOrdersAsync();
-        totalPages = (int)Math.Ceiling(totalOrders / (decimal)pageSize);
         await LoadOrdersAsync(currentPage);
     }
+    
     private async Task OnStatusChanged(ChangeEventArgs e)
     {
         selectedStatus = e.Value.ToString(); 
-        orders = await OrderService.GetPagedOrdersAsync(currentPage, pageSize, selectedStatus);
         currentPage = 1;  
         await LoadOrdersAsync(currentPage);  
     }
 
     private async Task LoadOrdersAsync(int pageNumber)
     {
-        Console.WriteLine("Updated");
-        Console.WriteLine(selectedStatus);
-        // orders = await OrderService.GetPagedOrdersAsync(pageNumber, pageSize, selectedStatus);
+        if (currentUser == null)
+        {
+            return;
+        }
+        
+        Console.WriteLine("Loading orders for member ID: " + currentUser.MemberId);
         var result = await OrderService.GetFilteredOrdersAsync(pageNumber, pageSize, searchText, orderDate, selectedStatus);
-        orders = result.Items.ToList(); // Chuyển IEnumerable<Order> thành List<Order>
-        totalOrders = result.TotalCount;
-        currentPage = pageNumber;
+        
+        // Filter orders by current user
+        var userOrders = result.Items.Where(o => o.MemberId == currentUser.MemberId).ToList();
+        orders = userOrders;
+        totalOrders = orders.Count;
+        totalPages = Math.Max(1, (int)Math.Ceiling(totalOrders / (decimal)pageSize));
+        
+        currentPage = Math.Min(currentPage, totalPages);
         await InvokeAsync(StateHasChanged);
     }
 
@@ -319,5 +331,9 @@
             await LoadOrdersAsync(pageNumber);
         }
     }
-   
+    
+    private void RedirectToLogin()
+    {
+        NavigationManager.NavigateTo("/login");
+    }
 }
