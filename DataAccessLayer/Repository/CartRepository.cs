@@ -18,10 +18,8 @@ namespace DataAccessLayer.Repository
 
         public async Task<List<CartItem>> GetCartItemsByCartIdAsync(int userId)
         {
-            
-            var cart = await _context.Carts.AsNoTracking().FirstOrDefaultAsync(n => n.MemberId == userId);
 
-           
+            var cart = await _context.Carts.FirstOrDefaultAsync(n => n.MemberId == userId);
             if (cart == null)
             {
                
@@ -31,7 +29,6 @@ namespace DataAccessLayer.Repository
             var cartDetails = await _context.CartItems
                                             .Where(ci => ci.CartId == cart.CartId)
                                             .Include(ci => ci.Product)
-                                             .AsNoTracking()
                                             .ToListAsync();
 
             if (cartDetails == null || !cartDetails.Any()) 

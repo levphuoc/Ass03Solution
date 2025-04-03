@@ -140,7 +140,7 @@
                 await OrderDetailService.DeleteOrderItemsByOrderIdAsync(orderid);
 
                 // Delete the order
-                await OrderService.DeleteOrderAsync(orderid);
+                await OrderService.CancelOrderAsync(orderid);
                 await hubConnection.InvokeAsync("NotifyOrderCreation", orderid);
                 // Success message
                 IsSuccess = true;

@@ -12,44 +12,76 @@
 <PageTitle>Orders Dashboard</PageTitle>
 
 <div class="container mt-4">
-    <h1 class="mb-4 text-primary">📦 Orders Dashboard</h1>
+    <h1 class="mb-4 text-primary">📦My Orders</h1>
 
     <div class="row mb-4">
+
+        <!-- Total Orders -->
         <div class="col-md-4">
             <div class="card bg-info text-white shadow-sm">
                 <div class="card-body">
                     <h5 class="card-title">Total Orders</h5>
                     <h2>@totalOrders</h2>
                 </div>
-
             </div>
-
-            
         </div>
-       
 
-        <div class="col-md-4 d-flex align-items-end justify-content-end">
-            <NavLink class="btn btn-primary btn-lg" href="/orders/create">+ Create New Order</NavLink>
+        <!-- Order Status -->
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header text-white bg-primary">
+                <h5 class="mb-0">Search Orders</h5>
+            </div>
+            <div class="card-body">
+                <form>
+                    <div class="row mb-3">
+                        <!-- Search Box -->
+                        <div class="col-md-4">
+                            <label for="searchText" class="form-label">Search Text</label>
+                            <input type="text" class="form-control" @bind="searchText" placeholder="Enter Order ID or Freight">
+                        </div>
+
+                        <!-- Date Picker -->
+                        <div class="col-md-4">
+                            <label for="datePicker" class="form-label">Date</label>
+                            <input type="date" class="form-control" @bind="orderDate">
+                        </div>
+
+                        <!-- Order Status Dropdown -->
+                        <div class="col-md-4">
+                            <label for="orderStatus" class="form-label">Order Status</label>
+                            <select class="form-select" @bind="selectedStatus">
+                                <option value="ALL">All</option>
+                                <option value="Spending">Spending</option>
+                                <option value="Approve">Approve</option>
+                                <option value="Reject">Reject</option>
+                                <option value="Shipping">Shipping</option>
+                                <option value="Shipped">Shipped</option>
+                                <option value="Cancel">Cancel</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <!-- Reset Button -->
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-outline-secondary w-100" @onclick="ResetFilters">Reset Filters</button>
+                        </div>
+
+                        <!-- Search Button -->
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-primary w-100" @onclick="SearchOrders">Search</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
         </div>
+
+
+
+
     </div>
-    <div class="col-md-4">
-    <div class="card bg-light text-dark shadow-sm">
-        <div class="card-body">
-            <h5 class="card-title">Order Status</h5>
-                <select class="form-select" @onchange="OnStatusChanged">
-                    <option value="ALL">All</option>
-                    <option value="spending">Spending</option>
-                    <option value="approve">Approve</option>
-                    <option value="reject">Reject</option>
-                    <option value="shipping">Shipping</option>
-                    <option value="shipped">Shipped</option>
-                </select>
 
-
-
-        </div>
-    </div>
-</div>
 
 
     <div class="card shadow-sm">
@@ -97,6 +129,9 @@
                                         break;
                                     case DataAccessLayer.Enum.OrderStatus.Shipped:
                                         <span class="badge bg-primary">@order.Status.ToString().ToUpper()</span> 
+                                        break;
+                                    case DataAccessLayer.Enum.OrderStatus.Cancel:
+                                        <span class="badge bg-dark">@order.Status.ToString().ToUpper()</span>
                                         break;
                                     default:
                                         <span class="badge bg-secondary">@order.Status.ToString().ToUpper()</span> 
@@ -186,6 +221,8 @@
     private int totalPages;
     private HubConnection? hubConnection;
     private string selectedStatus = "ALL";
+    private string searchText = string.Empty;
+    private DateTime? orderDate = null;
     protected override async Task OnInitializedAsync()
     {
         hubConnection = new HubConnectionBuilder()
@@ -196,25 +233,39 @@
         hubConnection.On<int>("OrderCreated", async (orderId) => await RefreshOrders());
         hubConnection.On<Order>("OrderUpdated", async (updatedOrder) =>
     {    
-    orders = orders.Select(o => o.OrderId == updatedOrder.OrderId ? updatedOrder : o).ToList();
+        orders = orders.Select(o => o.OrderId == updatedOrder.OrderId ? updatedOrder : o).ToList();
 
-    await InvokeAsync(StateHasChanged);
+        await InvokeAsync(StateHasChanged);
     });
-    hubConnection.On<int, string>("ReceiveStatusChange", async (orderId, newStatus) =>
-        {
-            var order = orders.FirstOrDefault(o => o.OrderId == orderId);
-            if (order != null && Enum.TryParse<OrderStatus>(newStatus, out var updatedStatus))
+        hubConnection.On<int, string>("ReceiveStatusChange", async (orderId, newStatus) =>
             {
-                order.Status = updatedStatus;
-               
-            }
+                var order = orders.FirstOrDefault(o => o.OrderId == orderId);
+                if (order != null && Enum.TryParse<OrderStatus>(newStatus, out var updatedStatus))
+                {
+                    order.Status = updatedStatus;
+
+                }
                 await InvokeAsync(StateHasChanged);
-        });
+            });
 
         await hubConnection.StartAsync();
         Console.WriteLine("SignalR connection established.");
 
         await RefreshOrders();
+    }
+    private async Task SearchOrders()
+    {
+        currentPage = 1;
+        await LoadOrdersAsync(currentPage);
+    }
+
+    private void ResetFilters()
+    {
+        searchText = string.Empty;
+        orderDate = null;
+        selectedStatus = "ALL";
+        SearchOrders();
+        //orders.Clear();
     }
     private async Task RefreshOrders()
     {
@@ -235,7 +286,10 @@
     {
         Console.WriteLine("Updated");
         Console.WriteLine(selectedStatus);
-        orders = await OrderService.GetPagedOrdersAsync(pageNumber, pageSize, selectedStatus);
+        // orders = await OrderService.GetPagedOrdersAsync(pageNumber, pageSize, selectedStatus);
+        var result = await OrderService.GetFilteredOrdersAsync(pageNumber, pageSize, searchText, orderDate, selectedStatus);
+        orders = result.Items.ToList(); // Chuyển IEnumerable<Order> thành List<Order>
+        totalOrders = result.TotalCount;
         currentPage = pageNumber;
         await InvokeAsync(StateHasChanged);
     }

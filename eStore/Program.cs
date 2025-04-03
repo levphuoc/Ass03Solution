@@ -40,15 +40,17 @@ builder.Services.AddHttpClient();
 builder.Services.AddApplicationServices();
 
 // Change from Scoped to Transient to prevent concurrent access issues
+// Program.cs hoặc Startup.cs
+
+// Đăng ký DbContext với Scoped thay vì Transient
 builder.Services.AddDbContext<EStoreDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
-    // Add this to enable sensitive data logging for development
-    .EnableSensitiveDataLogging(builder.Environment.IsDevelopment())
-    // Add this to help with concurrent requests
-    .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
+           .EnableSensitiveDataLogging(builder.Environment.IsDevelopment())
+           .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
+);
 
-// Changed from Scoped to Transient to prevent concurrent access issues
-builder.Services.AddTransient<IUnitOfWork, UnitOfWork>();
+
+
 
 // Auth providers
 builder.Services.AddAuthenticationCore();

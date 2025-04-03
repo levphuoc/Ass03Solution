@@ -50,6 +50,65 @@ namespace BLL.Services
            
             return orders.ToList();
         }
+
+        public async Task<(IEnumerable<Order> Items, int TotalCount)> GetFilteredOrdersAsync(
+     int pageNumber,
+     int pageSize,
+     string? searchText = null,
+     DateTime? orderDate = null,
+     string? status = null)
+        {
+            // Lấy toàn bộ Orders từ Repository
+            var orders = await _unitOfWork.Orders.GetAllAsync(); // Lấy dữ liệu từ Repository dưới dạng IEnumerable
+
+            // Chuyển dữ liệu sang IQueryable để có thể lọc
+            var query = orders.AsQueryable();
+
+            // Tìm kiếm theo OrderId hoặc Freight
+            if (!string.IsNullOrEmpty(searchText))
+            {
+                if (int.TryParse(searchText, out int orderId))
+                {
+                    query = query.Where(o => o.OrderId == orderId);
+                }
+                else if (decimal.TryParse(searchText, out decimal freight))
+                {
+                    query = query.Where(o => o.Freight == freight);
+                }
+            }
+
+            // Lọc theo ngày OrderDate
+            if (orderDate.HasValue)
+            {
+                query = query.Where(o => o.OrderDate.Date == orderDate.Value.Date || o.RequiredDate == orderDate.Value.Date || o.ShippedDate == orderDate.Value.Date);
+            }
+
+            // Lọc theo trạng thái OrderStatus
+            if (!string.IsNullOrEmpty(status) && status != "ALL")
+            {
+                if (Enum.TryParse<OrderStatus>(status, true, out var parsedStatus))
+                {
+                    query = query.Where(o => o.Status == parsedStatus);
+                }
+            }
+
+            // Sắp xếp theo ngày OrderDate mới nhất
+            query = query.OrderByDescending(o => o.OrderDate);
+
+            // Lấy tổng số lượng bản ghi sau khi lọc
+            var totalCount = query.Count();
+
+            // Thực hiện phân trang
+            var items = query
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            return (items, totalCount);
+        }
+
+
+
         public async Task<List<Order>> GetPagedOrdersAsync(int pageNumber, int pageSize, string status)
         {
             
@@ -175,6 +234,10 @@ namespace BLL.Services
         public async Task ShippedOrderAsync(int orderId)
         {
             await UpdateOrderStatusAsync(orderId, OrderStatus.Shipped);
+        }
+        public async Task CancelOrderAsync(int orderId)
+        {
+            await UpdateOrderStatusAsync(orderId, OrderStatus.Cancel);
         }
         public async Task<List<Order>> GetPagedOrdersStaffAsync(int pageNumber, int pageSize, string status)
         {
