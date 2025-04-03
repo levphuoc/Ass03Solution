@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace DataAccessLayer.Migrations
 {
     /// <inheritdoc />
-    public partial class Init : Migration
+    public partial class AddfieldPicture : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -53,7 +53,8 @@ namespace DataAccessLayer.Migrations
                     ProductName = table.Column<string>(type: "nvarchar(40)", maxLength: 40, nullable: false),
                     Weight = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     UnitPrice = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    UnitsInStock = table.Column<int>(type: "int", nullable: false)
+                    UnitsInStock = table.Column<int>(type: "int", nullable: false),
+                    UrlImage = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
                 },
                 constraints: table =>
                 {

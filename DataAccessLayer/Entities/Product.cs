@@ -27,6 +27,9 @@ namespace DataAccessLayer.Entities
         [Required]
         public int UnitsInStock { get; set; }
 
+        [Required,MaxLength(500)]
+        public string? UrlImage { get; set; }
+
         public Categories Category { get; set; }
 
         public ICollection<OrderDetail> OrderDetails { get; set; }

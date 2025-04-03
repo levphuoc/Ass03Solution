@@ -9,5 +9,6 @@ namespace DataAccessLayer.Repository.Interfaces
 {
     public interface IProductRepository : IRepository<Product>
     {
+        Task<bool> HasProductsByCategoryIdAsync(int categoryId);
     }
 }
