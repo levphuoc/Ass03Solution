@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace BLL.Services
 {
@@ -150,17 +151,124 @@ namespace BLL.Services
             }
         }
 
+        // Add a private method for direct SQL deletion
+        private async Task ForceDeleteCartWithSQLAsync(int memberId, int cartId)
+        {
+            try
+            {
+                _logger?.LogWarning($"Using direct SQL to force delete cart {cartId} for member {memberId}");
+                
+                // Get a database connection from the UnitOfWork
+                var connection = _unitOfWork.GetDbConnection();
+                
+                // Delete cart items first
+                using (var command1 = connection.CreateCommand())
+                {
+                    command1.CommandText = $"DELETE FROM CartItems WHERE CartId = {cartId}";
+                    int itemsDeleted = await command1.ExecuteNonQueryAsync();
+                    _logger?.LogInformation($"Direct SQL: Deleted {itemsDeleted} items for cart {cartId}");
+                }
+                
+                // Then delete the cart itself
+                using (var command2 = connection.CreateCommand())
+                {
+                    command2.CommandText = $"DELETE FROM Carts WHERE CartId = {cartId}";
+                    int cartsDeleted = await command2.ExecuteNonQueryAsync();
+                    _logger?.LogInformation($"Direct SQL: Deleted {cartsDeleted} carts with ID {cartId}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, $"Error in direct SQL deletion: {ex.Message}");
+                // Try the absolute last resort approach - use raw SQL through Entity Framework
+                try
+                {
+                    // Get access to the context through reflection if necessary
+                    // This is just for debugging purposes to ensure we can delete the cart
+                    var dbContext = _unitOfWork.GetType().GetField("_context", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(_unitOfWork) as DbContext;
+                    
+                    if (dbContext != null)
+                    {
+                        await dbContext.Database.ExecuteSqlRawAsync($"DELETE FROM CartItems WHERE CartId = {cartId}");
+                        await dbContext.Database.ExecuteSqlRawAsync($"DELETE FROM Carts WHERE CartId = {cartId}");
+                        _logger?.LogInformation($"Last resort SQL through EF Core: Attempted to delete cart {cartId}");
+                    }
+                }
+                catch (Exception innerEx)
+                {
+                    _logger?.LogError(innerEx, $"Last resort EF Core deletion failed: {innerEx.Message}");
+                }
+            }
+        }
+
         // Xóa giỏ hàng khi đã tạo đơn hàng thành công
         public async Task DeleteCartAfterOrderCreateAsync(int memberId)
         {
             try
             {
-                await _unitOfWork.Carts.ClearCartAsync(memberId);
-                _logger?.LogInformation($"Cart cleared for member {memberId} after order creation");
+                // First, check if cart exists
+                var cart = await _unitOfWork.Carts.GetCartWithItemsByMemberIdAsync(memberId);
+                if (cart == null)
+                {
+                    _logger?.LogInformation($"No cart found for member {memberId} to delete after order creation");
+                    return;
+                }
+
+                // Log details for debugging
+                int cartId = cart.CartId;
+                int itemCount = cart.CartItems?.Count ?? 0;
+                _logger?.LogInformation($"Starting to delete cart ID {cartId} with {itemCount} items for member {memberId}");
+                
+                // Delete both cart and cart items completely
+                await _unitOfWork.Carts.DeleteCartAndItemsByMemberIdAsync(memberId);
+                
+                // Verify deletion
+                var cartAfterDeletion = await _unitOfWork.Carts.GetCartWithItemsByMemberIdAsync(memberId);
+                if (cartAfterDeletion != null)
+                {
+                    _logger?.LogWarning($"Failed to delete cart for member {memberId} - cart still exists after deletion attempt");
+                    
+                    // Try a second time with a different approach - manual deletion of cart items first, then cart
+                    try 
+                    {
+                        // First clear all cart items
+                        await _unitOfWork.Carts.ClearCartAsync(memberId);
+                        
+                        // Then try to find and delete the cart directly through the generic repository
+                        var cartsToDelete = await _unitOfWork.Carts.FindAsync(c => c.MemberId == memberId);
+                        foreach (var cartToDelete in cartsToDelete)
+                        {
+                            await _unitOfWork.Carts.DeleteAsync(cartToDelete.CartId);
+                        }
+                        
+                        // Save changes to ensure everything is committed
+                        await _unitOfWork.SaveChangesAsync();
+                        
+                        _logger?.LogInformation($"Second attempt: Manually deleted cart for member {memberId}");
+                        
+                        // Verify again
+                        cartAfterDeletion = await _unitOfWork.Carts.GetCartWithItemsByMemberIdAsync(memberId);
+                        if (cartAfterDeletion != null)
+                        {
+                            // Third attempt - direct SQL as a last resort
+                            await ForceDeleteCartWithSQLAsync(memberId, cartId);
+                        }
+                    }
+                    catch (Exception innerEx) 
+                    {
+                        _logger?.LogError(innerEx, $"Second attempt: Error manually deleting cart for member {memberId}");
+                        // Try direct SQL as a last resort
+                        await ForceDeleteCartWithSQLAsync(memberId, cartId);
+                    }
+                }
+                else
+                {
+                    _logger?.LogInformation($"Cart and items successfully deleted for member {memberId} after order creation");
+                }
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, $"Error clearing cart for member {memberId} after order creation");
+                _logger?.LogError(ex, $"Error deleting cart for member {memberId} after order creation: {ex.Message}");
             }
         }
     }

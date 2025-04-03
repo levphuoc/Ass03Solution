@@ -243,10 +243,28 @@
         }
     }
 
-    private void Checkout()
+    private async Task Checkout()
     {
-        // Redirect to checkout page (can be implemented later)
-        NavigationManager.NavigateTo("/orders/create");
+        if (currentUser == null || cart == null || !cart.Items.Any()) return;
+        
+        try 
+        {
+            // Confirm with the user before proceeding to checkout
+            bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", 
+                "Proceeding to checkout will create an order with the items in your cart.\n\n" +
+                "After successful checkout, your cart will be cleared.\n\n" +
+                "Do you want to continue?");
+                
+            if (confirmed)
+            {
+                // Redirect to checkout page
+                NavigationManager.NavigateTo("/orders/create");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error during checkout: {ex.Message}");
+        }
     }
 
     private string GetProxyImageUrl(string originalUrl)
