@@ -2,190 +2,216 @@
 @rendermode InteractiveServer
 @using BLL.DTOs
 @using BLL.Extensions
+@using BLL.Services.FirebaseServices.Interfaces
+@using BLL.Services.FirebaseServices.Utilities
 @using BLL.Services.IServices
 @using Microsoft.AspNetCore.SignalR.Client
 @using System.Text
-@using Microsoft.AspNetCore.Components.Web.Virtualization
-@using BLL.Services
-@using BLL.Hubs
-@using DataAccessLayer.Entities
 @inject ISalesReportService SalesReportService
-@inject IAuthService AuthService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
+@* @inject IFirebaseAnalyticsService FirebaseAnalytics *@
+@inject eStore.Utils.IFileSaveAndLoadUtil FileUtil
 
-@if (currentUser == null)
-{
-    <div class="alert alert-warning">
-        <p>You need to log in to access this page.</p>
-        <button class="btn btn-primary" @onclick="RedirectToLogin">Go to Login</button>
+<h3 class="text-primary mb-4"><i class="fas fa-chart-line me-2"></i>Sales Report</h3>
+<div class="card shadow-sm p-4 mb-5">
+    <div class="row g-4 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label fw-semibold">Start Date</label>
+            <InputDate @bind-Value="StartDate" class="form-control" />
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label fw-semibold">End Date</label>
+            <InputDate @bind-Value="EndDate" class="form-control" />
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label fw-semibold">Chart Type</label>
+            <select class="form-select" @bind="SelectedChartType">
+                <option value="pie">Pie Chart</option>
+                <option value="bar">Bar Chart</option>
+                <option value="line">Line Chart</option>
+            </select>
+        </div>
+
+        <div class="col-md-3 text-end">
+            <button class="btn btn-primary w-100" @onclick="GenerateReport" disabled="@IsLoading">
+                @if (IsLoading)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                }
+                else
+                {
+                    <i class="fas fa-sync-alt me-2">Generate Report</i>
+                }
+            </button>
+        </div>
     </div>
-}
-else if (!AuthService.IsInRole("Admin") && !AuthService.IsInRole("Staff") && !AuthService.IsInRole("Deliverer"))
-{
-    <div class="alert alert-danger">
-        <p>You do not have permission to access this page. Only Administrators, Staff, and Deliverers can view sales reports.</p>
-        <button class="btn btn-primary" @onclick="RedirectToHome">Go to Home</button>
-    </div>
-}
-else
-{
-    <div class="mb-3">
-        <span class="badge bg-info">Your role: @currentUser.Role</span>
-    </div>
-    
-    <h3 class="text-primary mb-4"><i class="fas fa-chart-line"></i> Sales Report</h3>
-    <div class="card shadow-sm p-4 mb-4">
+
+    @if (SalesReportData.Any())
+    {
+        <hr class="my-4" />
+
         <div class="row g-3">
-            <div class="col-md-3">
-                <label class="form-label fw-bold">Start Date</label>
-                <InputDate @bind-Value="StartDate" class="form-control" />
+            <div class="col-md-9 d-flex align-items-center gap-4">
+                <div class="input-group">
+                    <label class="input-group-text" for="chartUpload">
+                        <i class="fas fa-upload"></i> Upload Chart
+                    </label>
+                    <InputFile id="chartUpload" OnChange="OnChartFileSelected" accept="image/png" class="form-control" />
+                </div>
+
+                @if (SelectedFile != null)
+                {
+                    <small class="text-muted ms-1">Selected: <strong>@SelectedFile.Name</strong></small>
+                }
+
             </div>
 
-            <div class="col-md-3">
-                <label class="form-label fw-bold">End Date</label>
-                <InputDate @bind-Value="EndDate" class="form-control" />
-            </div>
-
-            <div class="col-md-3">
-                <label class="form-label fw-bold">Chart Type</label>
-                <select class="form-select" @bind="SelectedChartType">
-                    <option value="pie">Pie Chart</option>
-                    <option value="bar">Bar Chart</option>
-                    <option value="line">Line Chart</option>
-                </select>
-            </div>
-
-            <div class="col-md-3 d-flex align-items-end">
-                <button class="btn btn-primary w-100" @onclick="GenerateReport" disabled="@IsLoading">
+            <div class="col-md-3 text-end">
+                <button class="btn btn-success w-100" @onclick="UploadChartToFirebase" disabled="@IsLoading">
                     @if (IsLoading)
                     {
                         <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                     }
                     else
                     {
-                        <i class="fas fa-sync-alt me-2">Generate Report</i>
+                        <i class="fas fa-upload me-2">Upload Chart to Firebase</i>
                     }
                 </button>
             </div>
         </div>
 
-        @if (SalesReportData.Any())
-        {
-            <div class="row g-3 mt-3">
-                <div class="col-md-4 offset-md-8 d-flex gap-2 justify-content-end">
-                    <button class="btn btn-outline-secondary" @onclick="ExportToCsv">
-                        <i class="fas fa-file-csv me-1"></i>Export to CSV
-                    </button>
-                    <button class="btn btn-outline-danger" @onclick="ExportToPdf">
-                        <i class="fas fa-file-pdf me-1"></i>Export to PDF
-                    </button>
-                </div>
+        <div class="row mt-4 justify-content-end">
+            <div class="col-auto d-flex gap-2">
+                <button class="btn btn-outline-danger" @onclick="SaveChartToImage">
+                    <i class="fas fa-image me-1"></i> Save Chart to Image
+                </button>
+                <button class="btn btn-outline-secondary" @onclick="ExportToCsv">
+                    <i class="fas fa-file-csv me-1"></i> Export to CSV
+                </button>
+                <button class="btn btn-outline-danger" @onclick="ExportToPdf">
+                    <i class="fas fa-file-pdf me-1"></i> Export to PDF
+                </button>
             </div>
-        }
+        </div>
+    }
+</div>
 
-        @if (SalesReportData.Any())
+@if (!string.IsNullOrWhiteSpace(UploadStatusMessage))
+{
+    <div class="alert alert-success mt-3">
+        <strong>@UploadStatusMessage</strong><br />
+        @if (!string.IsNullOrWhiteSpace(UploadedFileUrl))
         {
-            <div class="row g-3 align-items-end mt-3">
-                <div class="col-md-12 text-end">
-                    <button class="btn btn-success" @onclick="GenerateChart">
-                        <i class="fas fa-chart-pie me-1">Generate Chart</i>
-                    </button>
-                </div>
-            </div>
+            <a href="@UploadedFileUrl" target="_blank" class="text-decoration-underline">View uploaded file</a>
         }
     </div>
-
-
-    @if (ErrorMessage is not null)
-    {
-        <div class="alert alert-danger mt-4 text-center">
-            <strong>Error:</strong> @ErrorMessage
-        </div>
-    }
-    else if (SalesReportData?.Any() == true)
-    {
-        <div class="mt-5">
-            <h5>Results from <strong>@StartDate.ToString("yyyy-MM-dd")</strong> to <strong>@EndDate.ToString("yyyy-MM-dd")</strong></h5>
-
-            <div class="row g-2 mb-3">
-                <div class="col-md-4">
-                    <input type="text" class="form-control" placeholder="🔍 Search Product Name..." @bind="SearchTerm" @bind:event="oninput" />
-                </div>
-                <div class="col-md-4">
-                    <input type="number" class="form-control" placeholder="Min Quantity" @bind="MinQuantity" @bind:event="oninput" />
-                </div>
-                <div class="col-md-4">
-                    <input type="number" class="form-control" placeholder="Min Revenue" @bind="MinRevenue" @bind:event="oninput" />
-                </div>
-            </div>
-
-            <table class="table table-bordered table-hover shadow-sm" id="sales-report-table">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Product Name</th>
-                        <th class="text-end" @onclick="() => ApplySorting(nameof(SalesReportDTO.TotalQuantity))">
-                            Total Quantity
-                            @if (CurrentSortColumn == nameof(SalesReportDTO.TotalQuantity))
-                            {
-                                <i class="@(SortDescending ? "fas fa-arrow-down" : "fas fa-arrow-up")"></i>
-                            }
-                        </th>
-                        <th class="text-end" @onclick="() => ApplySorting(nameof(SalesReportDTO.TotalRevenue))">
-                            Total Revenue
-                            @if (CurrentSortColumn == nameof(SalesReportDTO.TotalRevenue))
-                            {
-                                <i class="@(SortDescending ? "fas fa-arrow-down" : "fas fa-arrow-up")"></i>
-                            }
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var item in FilteredAndSortedData)
-                    {
-                        <tr>
-                            <td>@item.ProductName</td>
-                            <td class="text-end">@item.TotalQuantity</td>
-                            <td class="text-end">@item.TotalRevenue.ToString("C")</td>
-                        </tr>
-                    }
-                </tbody>
-                
-                <div class="mt-5">
-                    <h5 class="mb-3">Sales Chart (@SelectedChartType.ToUpperInvariant())</h5>
-                    <div style="position: relative; height: 50vh;">
-                        <canvas id="salesChart"></canvas>
-                    </div>
-                </div>
-            </table>
-        </div>
-    }
-    else if (HasGenerated)
-    {
-        <div class="alert alert-warning mt-4 text-center">
-            No data found for the selected period.
-        </div>
-    }
 }
 
+@if (!string.IsNullOrWhiteSpace(ErrorMessage))
+{
+    <div class="alert alert-danger mt-3 text-center">
+        <strong>@ErrorMessage</strong>
+    </div>
+}
+@if (SalesReportData?.Any() == true)
+{
+    <div class="mt-5">
+        <h5>Results from <strong>@StartDate.ToString("yyyy-MM-dd")</strong> to <strong>@EndDate.ToString("yyyy-MM-dd")</strong></h5>
+
+        <div class="row g-2 mb-3">
+            <div class="col-md-4">
+                <input type="text" class="form-control" placeholder="🔍 Search Product Name..." @bind="SearchTerm" @bind:event="oninput" />
+            </div>
+            <div class="col-md-4">
+                <input type="number" class="form-control" placeholder="Min Quantity" @bind="MinQuantity" @bind:event="oninput" />
+            </div>
+            <div class="col-md-4">
+                <input type="number" class="form-control" placeholder="Min Revenue" @bind="MinRevenue" @bind:event="oninput" />
+            </div>
+        </div>
+
+        <table class="table table-bordered table-hover shadow-sm" id="sales-report-table">
+            <thead class="table-dark">
+                <tr>
+                    <th>Product Name</th>
+                    <th class="text-end" @onclick="() => ApplySorting(nameof(SalesReportDTO.TotalQuantity))">
+                        Total Quantity
+                        @if (CurrentSortColumn == nameof(SalesReportDTO.TotalQuantity))
+                        {
+                            <i class="@(SortDescending ? "fas fa-arrow-down" : "fas fa-arrow-up")"></i>
+                        }
+                    </th>
+                    <th class="text-end" @onclick="() => ApplySorting(nameof(SalesReportDTO.TotalRevenue))">
+                        Total Revenue
+                        @if (CurrentSortColumn == nameof(SalesReportDTO.TotalRevenue))
+                        {
+                            <i class="@(SortDescending ? "fas fa-arrow-down" : "fas fa-arrow-up")"></i>
+                        }
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in FilteredAndSortedData)
+                {
+                    <tr>
+                        <td>@item.ProductName</td>
+                        <td class="text-end">@item.TotalQuantity</td>
+                        <td class="text-end">@item.TotalRevenue.ToString("C")</td>
+                    </tr>
+                }
+            </tbody>
+
+            <div class="mt-5">
+                <h5 class="mb-3">Sales Chart (@SelectedChartType.ToUpperInvariant())</h5>
+                <div style="position: relative; height: 50vh;">
+                    <canvas id="salesChart"></canvas>
+                </div>
+            </div>
+        </table>
+    </div>
+}
+else if (HasGenerated)
+{
+    <div class="alert alert-warning mt-4 text-center">
+        No data found for the selected period.
+    </div>
+}
 @code {
+    #region State
+
     private DateTime StartDate { get; set; } = DateTime.Today.AddDays(-7);
     private DateTime EndDate { get; set; } = DateTime.Today;
+
     private List<SalesReportDTO> SalesReportData { get; set; } = new();
     private bool IsLoading = false;
     private bool HasGenerated = false;
     private string? ErrorMessage = null;
-    private HubConnection? hubConnection;
-    private string SelectedChartType { get; set; } = "bar"; // default chart type
 
-    // Filtering parameters
+    private HubConnection? hubConnection;
+    private string SelectedChartType { get; set; } = "bar";
+
+    // Filtering
     private string SearchTerm { get; set; } = "";
     private int? MinQuantity { get; set; }
     private decimal? MinRevenue { get; set; }
 
-    // Sorting parameters
+    // Sorting
     private string CurrentSortColumn { get; set; } = nameof(SalesReportDTO.TotalRevenue);
     private bool SortDescending { get; set; } = true;
+
+    // Chart
+    private string CurrentChartFileName => $"SalesChart_{DateTime.Now:MMMddyy_HHmmss}.png";
+    private IBrowserFile? SelectedFile;
+    private string? UploadStatusMessage = null;
+    private string? UploadedFileUrl = null;
+    private string? SelectedFileName = null;
+
+    #endregion
+
+    #region Computed Properties
 
     private IEnumerable<SalesReportDTO> FilteredAndSortedData => SalesReportData
         .Where(x => string.IsNullOrWhiteSpace(SearchTerm) || x.ProductName.Contains(SearchTerm, StringComparison.OrdinalIgnoreCase))
@@ -193,7 +219,58 @@ else
         .Where(x => !MinRevenue.HasValue || x.TotalRevenue >= MinRevenue.Value)
         .OrderByDynamic(CurrentSortColumn, SortDescending);
 
-    // Apply Sorting Method
+    #endregion
+
+    #region Lifecycle
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SetupSignalRConnection();
+        // await FirebaseAnalytics.LogEventAsync("screen_view", new Dictionary<string, object>
+        // {
+        //     { "screen_name", "SalesReport" },
+        //     { "user_role", "admin" }
+        // });
+    }
+
+    #endregion
+
+    #region SignalR Setup
+
+    private async Task SetupSignalRConnection()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/salesReportHub"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        hubConnection.On<List<SalesReportDTO>>("SalesReportGenerated", async (data) =>
+        {
+            Console.WriteLine($"📈 Report received with {data.Count} entries.");
+            SalesReportData = data;
+            IsLoading = false;
+            HasGenerated = true;
+            ErrorMessage = null;
+
+            await InvokeAsync(StateHasChanged);
+            await GenerateChart();
+        });
+
+        hubConnection.Closed += async (error) =>
+        {
+            Console.WriteLine("🔌 SignalR disconnected. Attempting reconnect...");
+            IsLoading = false;
+            await Task.Delay(3000);
+            await hubConnection.StartAsync();
+        };
+
+        await hubConnection.StartAsync();
+    }
+
+    #endregion
+
+    #region Sorting
+
     private void ApplySorting(string columnName)
     {
         if (CurrentSortColumn == columnName)
@@ -205,40 +282,66 @@ else
         }
     }
 
-    private Member currentUser;
+    #endregion
 
-    protected override async Task OnInitializedAsync()
+    #region Report Generation
+
+    private async Task GenerateReport()
     {
-        currentUser = await AuthService.GetCurrentUserAsync();
-        if (currentUser != null && (AuthService.IsInRole("Admin") || AuthService.IsInRole("Staff") || AuthService.IsInRole("Deliverer")))
+        Console.WriteLine("📤 Generating report...");
+
+        if (StartDate > EndDate)
         {
-            hubConnection = new HubConnectionBuilder()
-                .WithUrl(NavigationManager.ToAbsoluteUri("/salesReportHub"))
-                .WithAutomaticReconnect()
-                .Build();
-
-            hubConnection.On<List<SalesReportDTO>>("SalesReportGenerated", async (data) =>
-            {
-                await JSRuntime.InvokeVoidAsync("console.log", $"SalesReportGenerated with {data.Count} records");
-
-                SalesReportData = data;
-                IsLoading = false;
-                HasGenerated = true;
-                ErrorMessage = null;
-                await InvokeAsync(StateHasChanged);
-                await GenerateChart();
-            });
-
-            hubConnection.Closed += async (error) =>
-            {
-                Console.WriteLine("SignalR disconnected. Reconnecting...");
-                IsLoading = false;
-                await Task.Delay(3000);
-                await hubConnection.StartAsync();
-            };
-
-            await hubConnection.StartAsync();
+            ErrorMessage = "Start date must be earlier than End date.";
+            return;
         }
+
+        if (hubConnection?.State == HubConnectionState.Connected)
+        {
+            IsLoading = true;
+            HasGenerated = false;
+            ErrorMessage = null;
+            SalesReportData.Clear();
+
+            try
+            {
+                await hubConnection.InvokeAsync("TriggerReport", StartDate, EndDate);
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"⚠️ Report request failed: {ex.Message}";
+                IsLoading = false;
+            }
+        }
+        else
+        {
+            ErrorMessage = "⚠️ SignalR not connected. Try refreshing the page.";
+        }
+    }
+
+    #endregion
+
+    #region Chart Logic
+    private async Task OnChartFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file == null)
+            return;
+
+        SelectedFile = file;
+        SelectedFileName = file?.Name;
+        UploadStatusMessage = null;
+        ErrorMessage = null;
+
+        var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // up to 10MB
+
+        string firebaseKeyPath = ProgramUtils.GetKeyPath();
+        string firebasePath = $"SalesReport/{DateTime.Now:MMMddyy}/{file.Name}";
+
+        var firebaseService = FirebaseServiceUtils.CreateStorageService(firebaseKeyPath);
+        var uploadedUrl = await firebaseService.UploadFileAsync(stream, firebasePath);
+
+        Console.WriteLine($"Uploaded chart to Firebase: {uploadedUrl}");
     }
 
     private async Task GenerateChart()
@@ -249,54 +352,6 @@ else
         }
     }
 
-    private async Task GenerateReport()
-    {
-        await JSRuntime.InvokeVoidAsync("console.log", "GenerateReport clicked");
-
-        if (StartDate > EndDate)
-        {
-            ErrorMessage = "Start date must be earlier than End date.";
-            return;
-        }
-
-        if (hubConnection is not null && hubConnection.State == HubConnectionState.Connected)
-        {
-            IsLoading = true;
-            HasGenerated = false;
-            ErrorMessage = null;
-            SalesReportData.Clear();
-
-            try
-            {
-                await JSRuntime.InvokeVoidAsync("console.log", $"📡 Sending report for: {StartDate:yyyy-MM-dd} -> {EndDate:yyyy-MM-dd}");
-                await hubConnection.InvokeAsync("TriggerReport", StartDate, EndDate);
-            }
-            catch (Exception ex)
-            {
-                ErrorMessage = $"Failed to request report: {ex.Message}";
-                IsLoading = false;
-            }
-        }
-        else
-        {
-            ErrorMessage = "SignalR connection not established. Please refresh the page.";
-        }
-    }
-
-    private async Task ExportToCsv()
-    {
-        var csvContent = new StringBuilder();
-        csvContent.AppendLine("Product Name,Total Quantity,Total Revenue");
-
-        foreach (var item in SalesReportData)
-        {
-            csvContent.AppendLine($"{item.ProductName},{item.TotalQuantity},{item.TotalRevenue}");
-        }
-
-        var csvBytes = Encoding.UTF8.GetBytes(csvContent.ToString());
-        await JSRuntime.InvokeVoidAsync("downloadFile", "sales-report.csv", "text/csv", csvBytes);
-    }
-
     private async Task RenderChart()
     {
         var labels = SalesReportData.Select(x => x.ProductName).ToArray();
@@ -305,22 +360,92 @@ else
         await JSRuntime.InvokeVoidAsync("renderSalesChart", labels, revenues, SelectedChartType);
     }
 
+    private async Task SaveChartToImage()
+    {
+        try
+        {
+            var fileName = CurrentChartFileName;
+            await JSRuntime.InvokeVoidAsync("saveChartImageToLocal", "salesChart", fileName);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ JSInterop failed: {ex.Message}");
+        }
+    }
+    [JSInvokable]
+    public async Task OnChartFilePicked(string base64Image, string fileName)
+    {
+        var imageBytes = Convert.FromBase64String(base64Image);
+        using var stream = new MemoryStream(imageBytes);
+
+        string firebaseKeyPath = ProgramUtils.GetKeyPath();
+        string firebasePath = $"SalesReport/{DateTime.Now:MMMddyy}/{fileName}";
+
+        var firebaseService = FirebaseServiceUtils.CreateStorageService(firebaseKeyPath);
+        var uploadedUrl = await firebaseService.UploadFileAsync(stream, firebasePath);
+
+        Console.WriteLine($"Uploaded: {uploadedUrl}");
+    }
+
+
+    #endregion
+
+    #region Export Functions
+    private async Task ExportToCsv()
+    {
+        var csvBuilder = new StringBuilder();
+        csvBuilder.AppendLine("Product Name,Total Quantity,Total Revenue");
+
+        foreach (var item in SalesReportData)
+        {
+            csvBuilder.AppendLine($"{item.ProductName},{item.TotalQuantity},{item.TotalRevenue}");
+        }
+
+        var csvBytes = Encoding.UTF8.GetBytes(csvBuilder.ToString());
+        await JSRuntime.InvokeVoidAsync("downloadFileWithDialog", $"sales-report_{StartDate:yyyyMMdd}_{EndDate:yyyyMMdd}.csv", csvBytes, "text/csv");
+    }
+
+
     private async Task ExportToPdf()
     {
-        await JSRuntime.InvokeVoidAsync(
-            "generatePdfFromTable",
-            "sales-report-table",
-            "salesChart",
-            $"Sales Report - {StartDate:yyyyMMdd}-{EndDate:yyyyMMdd}.pdf");
+        await JSRuntime.InvokeVoidAsync("generatePdfFromTable", "sales-report-table", "salesChart", $"Sales_Report_{StartDate:yyyyMMdd}_{EndDate:yyyyMMdd}.pdf");
+    }
+    private async Task UploadChartToFirebase()
+    {
+        IsLoading = true;
+        UploadStatusMessage = null;
+        UploadedFileUrl = null;
+
+        if (SelectedFile == null)
+        {
+            ErrorMessage = "Please select a file first.";
+            IsLoading = false;
+            return;
+        }
+
+        try
+        {
+            using var stream = SelectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            string firebaseKeyPath = ProgramUtils.GetKeyPath();
+            string firebasePath = $"SalesReport/{DateTime.Now:MMMddyy}/{SelectedFile.Name}";
+
+            var firebaseService = FirebaseServiceUtils.CreateStorageService(firebaseKeyPath);
+            var uploadedUrl = await firebaseService.UploadFileAsync(stream, firebasePath);
+
+            UploadStatusMessage = "Upload successful!";
+            UploadedFileUrl = uploadedUrl;
+            ErrorMessage = null;
+            IsLoading = false;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Upload failed: {ex.Message}";
+            UploadStatusMessage = null;
+            IsLoading = false;
+        }
     }
 
-    private void RedirectToLogin()
-    {
-        NavigationManager.NavigateTo("/login");
-    }
 
-    private void RedirectToHome()
-    {
-        NavigationManager.NavigateTo("/");
-    }
+    #endregion
 }
+

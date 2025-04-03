@@ -1,6 +1,7 @@
 ﻿using BLL.DTOs;
 using BLL.Hubs;
 using BLL.Services.FirebaseServices;
+using BLL.Services.FirebaseServices.Interfaces;
 using BLL.Services.IServices;
 using DataAccessLayer.Data;
 using DataAccessLayer.Repository;
@@ -46,18 +47,26 @@ namespace BLL.Services
 
             try
             {
-                await _firebaseUploader.UploadSalesReportWithSubcollectionAsync( startDate, endDate, report);
-                // Send to UI via SignalR
+                if (report.Any())
+                {
+                    await _firebaseUploader.UploadReportWithProductsAsync(startDate, endDate, report);
+                    Console.WriteLine("Report sent to Firestore.");
+                }
+                else
+                {
+                    Console.WriteLine("No sales data to upload to Firestore.");
+                }
+
                 await _hubContext.Clients.All.SendAsync("SalesReportGenerated", report);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"⚠️ Firebase upload failed: {ex.Message}");
-                // Optional: Log this to your own logger
+                Console.WriteLine($" Firebase upload failed: {ex.Message}");
             }
 
             return report;
         }
     }
+
 
 }

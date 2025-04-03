@@ -5,7 +5,10 @@ using DataAccessLayer.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using BLL.Hubs;
-using BLL.Services.FirebaseServices;
+using BLL.Services.FirebaseServices.Core;
+using BLL.Services.FirebaseServices.Interfaces;
+using BLL.Services.FirebaseServices.Utilities;
+using eStore.Utils;
 
 using Microsoft.AspNetCore.Authentication.Cookies;
 using eStore;
@@ -120,13 +123,30 @@ builder.Services.AddSingleton<IFirebaseDataUploaderService>(provider =>
     new FirebaseDataUploaderService(
         Path.Combine(builder.Environment.WebRootPath, "secrets", "firebase-key.json"),
         "groupassignment03-prn222")
+// Ensure initialization
+var firebaseApp = FirebaseInitializerService.Initialize(
+    ProgramUtils.GetKeyPath(builder)
 );
 
-FirebaseInitializerService.Initialize(
-    Path.Combine(builder.Environment.WebRootPath, "secrets", "firebase-key.json"));
+// Inject Firestore with that credential
+builder.Services.AddSingleton<IFirebaseDataUploaderService>(provider =>
+{
+    var credential = FirebaseInitializerService.GetCredential();
+    return new FirebaseDataUploaderService("groupassignment03-prn222", credential);
+});
+
+builder.Services.AddSingleton<IFirebaseStorageService>(provider =>
+    new FirebaseStorageService(
+        ProgramUtils.GetKeyPath(builder),
+        FirebaseServiceUtils.BucketName)); // bucket name here
+
+// Firebase Analytics (Measurement Protocol)
+//builder.Services.AddSingleton<IFirebaseAnalyticsService, FirebaseAnalyticsService>();
 
 
 // Business Logic Services
+builder.Services.AddScoped<IFileSaveAndLoadUtil, FileSaveAndLoadUtil>();
+
 builder.Services.AddScoped<IMemberService, MemberService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
@@ -143,7 +163,6 @@ app.MapHub<OrderHub>("/orderHub");
 app.MapHub<MemberHub>("/memberHub");
 app.MapHub<ProductHub>("/productHub");
 app.MapHub<CategoryHub>("/categoryHub");
-
 
 // Test DB Connection
 // Test DB Connection and Seed data
@@ -184,3 +203,20 @@ app.MapRazorComponents<eStore.Components.App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+
+public static class ProgramUtils
+{
+    public static WebApplicationBuilder Builder { get; set; } = null;
+    public static string GetKeyPath(WebApplicationBuilder builder)
+    {
+        Builder ??= builder;
+        return Path.Combine(builder.Environment.WebRootPath, "secrets", "firebase-key.json");
+    }
+
+    public static string GetKeyPath()
+    {
+        if (Builder == null) return "";
+        return GetKeyPath(Builder);
+    }
+}
+
