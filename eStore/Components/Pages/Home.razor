@@ -82,7 +82,7 @@
             {
                 <div class="col">
                     <div class="card h-100">
-                        <div class="card-img-top text-center p-3">
+                        <div class="card-img-top text-center p-3" style="cursor: pointer;" @onclick="() => NavigateToProductDetail(product.ProductId)">
                             @if (!string.IsNullOrEmpty(product.UrlImage))
                             {
                                 <img src="@GetProxyImageUrl(product.UrlImage)" alt="@product.ProductName" 
@@ -94,7 +94,7 @@
                                 <img src="images/no-image.png" alt="No Image" style="max-height: 150px; object-fit: contain;" />
                             }
                         </div>
-                        <div class="card-body">
+                        <div class="card-body" style="cursor: pointer;" @onclick="() => NavigateToProductDetail(product.ProductId)">
                             <h5 class="card-title">@product.ProductName</h5>
                             <p class="card-text">
                                 <strong>Category:</strong> <span class="badge bg-primary">@product.CategoryName</span>
@@ -106,7 +106,8 @@
                                 <strong>In Stock:</strong> @product.UnitsInStock
                             </p>
                         </div>
-                        <div class="card-footer d-grid">
+                        <div class="card-footer d-grid gap-2">
+                            <button class="btn btn-primary mb-1" @onclick="() => NavigateToProductDetail(product.ProductId)">View Details</button>
                             <button class="btn btn-success" @onclick="() => AddToCart(product)">Add to Cart</button>
                         </div>
                     </div>
@@ -244,5 +245,10 @@
         }
         
         return originalUrl;
+    }
+    
+    private void NavigateToProductDetail(int productId)
+    {
+        NavigationManager.NavigateTo($"/product/{productId}");
     }
 }
