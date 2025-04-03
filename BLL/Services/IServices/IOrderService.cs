@@ -22,6 +22,7 @@ namespace BLL.Services.IServices
      int? memberId = null);
         Task<int> CreateOrderAsync(OrderDTO dto);
         Task<OrderDTO> GetOrderByIdAsync(int orderId); 
+        Task<Order> GetOrderEntityByIdAsync(int orderId);
         Task UpdateOrderAsync(OrderDTO order);
         Task DeleteOrderAsync(int orderId);
         Task ApproveOrderAsync(int orderId);

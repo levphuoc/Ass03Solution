@@ -187,6 +187,11 @@ namespace BLL.Services
             };
         }
 
+        public async Task<Order> GetOrderEntityByIdAsync(int orderId)
+        {
+            return await _unitOfWork.Orders.GetByIdAsync(orderId);
+        }
+
         public async Task UpdateOrderAsync(OrderDTO orderDTO)
         {
             var order = await _unitOfWork.Orders.GetByIdAsync((int)orderDTO.OrderId);

@@ -68,7 +68,7 @@
 
                 <label class="form-label fw-bold">Required Date</label>
 
-                <InputDate @bind-Value="OrderModel.RequiredDate" class="form-control" min="@OrderModel.OrderDate.ToString("yyyy-MM-dd")" />
+                <InputDate @bind-Value="OrderModel.RequiredDate" class="form-control" min="@OrderModel.OrderDate.ToString("yyyy-MM-dd")" @onchange="OnRequiredDateChanged" />
 
             </div>
 
@@ -76,7 +76,7 @@
 
                 <label class="form-label fw-bold">Shipped Date</label>
 
-                <InputDate @bind-Value="OrderModel.ShippedDate" class="form-control" min="@OrderModel.OrderDate.ToString("yyyy-MM-dd")" />
+                <InputDate @bind-Value="OrderModel.ShippedDate" class="form-control" min="@OrderModel.RequiredDate.ToString("yyyy-MM-dd")" />
 
             </div>
         </div>
@@ -249,6 +249,16 @@
         }
     }
 
+    private void OnRequiredDateChanged(ChangeEventArgs e)
+    {
+        // When Required Date changes, ensure Shipped Date is not earlier
+        if (OrderModel.ShippedDate < OrderModel.RequiredDate)
+        {
+            OrderModel.ShippedDate = OrderModel.RequiredDate;
+        }
+        StateHasChanged();
+    }
+
     private async Task CreateOrder()
     {
             IsLoading = true;
@@ -266,6 +276,15 @@
             IsLoading = false;
             return;
         }
+
+        // Validate that Shipped Date is greater than or equal to Required Date
+        if (OrderModel.ShippedDate < OrderModel.RequiredDate)
+        {
+            ErrorMessage = "Shipped Date must be greater than or equal to Required Date.";
+            IsLoading = false;
+            return;
+        }
+
         foreach (var item in OrderItems)
         {
             var isAvailable = await ProductService.CheckStockAvailabilityAsync(item.ProductId, item.Quantity);
