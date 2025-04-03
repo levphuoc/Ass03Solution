@@ -27,6 +27,11 @@ namespace DataAccessLayer.Repository
                 .ToListAsync();
         }
 
+        public async Task<IEnumerable<Categories>> GetAllAsync()
+        {
+            return await _context.Categories.ToListAsync();
+        }
+
         public async Task<Categories> GetByIdAsync(int id)
         {
             return await _context.Categories.FindAsync(id);

@@ -13,6 +13,13 @@
 
 <div class="container mt-4">
     <h1>User Information from Cookie</h1>
+    
+    @if (HttpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated == true)
+    {
+        <div class="mb-3">
+            <span class="badge bg-info">Your role: @HttpContextAccessor.HttpContext.User.FindFirst(c => c.Type == ClaimTypes.Role)?.Value</span>
+        </div>
+    }
 
     <div class="row mt-4">
         <div class="col-md-6">

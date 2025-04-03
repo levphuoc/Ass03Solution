@@ -11,5 +11,10 @@ namespace DataAccessLayer.Repository.Interfaces
     {
         Task<List<CartDetail>> GetCartItemsByCartIdAsync(int cartId);
         Task DeleteCartAndItemsByMemberIdAsync(int memberId);
+        Task<Cart> GetCartWithItemsByMemberIdAsync(int memberId);
+        Task<bool> ClearCartAsync(int memberId);
+        Task<bool> AddItemToCartAsync(int memberId, int productId, int quantity, decimal unitPrice);
+        Task<bool> UpdateCartItemQuantityAsync(int memberId, int productId, int quantity);
+        Task<bool> RemoveItemFromCartAsync(int memberId, int productId);
     }
-}
+} 

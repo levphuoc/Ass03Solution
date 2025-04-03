@@ -1,0 +1,215 @@
+@page "/product/{ProductId:int}"
+@rendermode InteractiveServer
+@using BLL.DTOs
+@using BLL.Services.IServices
+@using BLL.Services
+@using Microsoft.AspNetCore.Authorization
+@inject IProductService ProductService
+@inject IAuthService AuthService
+@inject ICartService CartService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>eStore - Product Detail</PageTitle>
+
+<div class="container mt-4">
+    <div class="mb-3">
+        <button class="btn btn-outline-secondary" @onclick="NavigateBack">
+            <i class="bi bi-arrow-left"></i> Back to Products
+        </button>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="d-flex justify-content-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    }
+    else if (product == null)
+    {
+        <div class="alert alert-danger">
+            Product not found. <a href="/" class="alert-link">Return to homepage</a>
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="row g-0">
+                <div class="col-md-4 p-3 text-center">
+                    @if (!string.IsNullOrEmpty(product.UrlImage))
+                    {
+                        <img src="@GetProxyImageUrl(product.UrlImage)" class="img-fluid rounded" 
+                             alt="@product.ProductName" style="max-height: 300px; object-fit: contain;"
+                             onerror="this.onerror=null; this.src='images/no-image.png';" />
+                    }
+                    else
+                    {
+                        <img src="images/no-image.png" class="img-fluid rounded" alt="No Image" style="max-height: 300px; object-fit: contain;" />
+                    }
+                </div>
+                <div class="col-md-8">
+                    <div class="card-body">
+                        <h2 class="card-title">@product.ProductName</h2>
+                        <div class="mb-3">
+                            <span class="badge bg-primary">@product.CategoryName</span>
+                        </div>
+                        <h3 class="text-danger mb-3">@($"{product.UnitPrice:C}")</h3>
+                        <p><strong>Weight:</strong> @product.Weight</p>
+                        <p><strong>Stock:</strong> @product.UnitsInStock units available</p>
+                        
+                        <div class="d-grid gap-2 col-6 mx-auto mt-4">
+                            <button class="btn btn-success btn-lg" @onclick="() => AddToCart(product)">
+                                <i class="bi bi-cart-plus"></i> Add to Cart
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header bg-light">
+                <h4 class="mb-0">Related Products</h4>
+            </div>
+            <div class="card-body">
+                @if (relatedProducts != null && relatedProducts.Any())
+                {
+                    <div class="row row-cols-1 row-cols-md-3 g-4">
+                        @foreach (var relatedProduct in relatedProducts)
+                        {
+                            <div class="col">
+                                <div class="card h-100">
+                                    <div class="card-img-top text-center p-2">
+                                        @if (!string.IsNullOrEmpty(relatedProduct.UrlImage))
+                                        {
+                                            <img src="@GetProxyImageUrl(relatedProduct.UrlImage)" 
+                                                 alt="@relatedProduct.ProductName" style="max-height: 100px; object-fit: contain;"
+                                                 onerror="this.onerror=null; this.src='images/no-image.png';" />
+                                        }
+                                        else
+                                        {
+                                            <img src="images/no-image.png" alt="No Image" style="max-height: 100px; object-fit: contain;" />
+                                        }
+                                    </div>
+                                    <div class="card-body">
+                                        <h5 class="card-title">@relatedProduct.ProductName</h5>
+                                        <p class="card-text text-danger">@($"{relatedProduct.UnitPrice:C}")</p>
+                                    </div>
+                                    <div class="card-footer">
+                                        <a href="/product/@relatedProduct.ProductId" class="btn btn-outline-primary btn-sm w-100">View Details</a>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p>No related products found.</p>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int ProductId { get; set; }
+    
+    private ProductDTO? product;
+    private IEnumerable<ProductDTO>? relatedProducts;
+    private DataAccessLayer.Entities.Member? currentUser;
+    private bool isLoading = true;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        currentUser = await AuthService.GetCurrentUserAsync();
+    }
+    
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadProductData();
+    }
+    
+    private async Task LoadProductData()
+    {
+        isLoading = true;
+        try
+        {
+            product = await ProductService.GetProductByIdAsync(ProductId);
+            
+            if (product != null)
+            {
+                // Load related products from same category
+                var allProducts = await ProductService.GetAllProductsAsync();
+                relatedProducts = allProducts
+                    .Where(p => p.CategoryId == product.CategoryId && p.ProductId != product.ProductId)
+                    .Take(3)
+                    .ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading product: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+    
+    private async Task AddToCart(ProductDTO product)
+    {
+        if (currentUser == null)
+        {
+            // Nếu chưa đăng nhập, chuyển hướng đến trang đăng nhập
+            await JSRuntime.InvokeVoidAsync("alert", "Please login to add items to your cart");
+            NavigationManager.NavigateTo("/login");
+            return;
+        }
+        
+        try
+        {
+            // Thêm sản phẩm vào giỏ hàng với số lượng là 1
+            var cart = await CartService.AddToCartAsync(
+                currentUser.MemberId, 
+                product.ProductId, 
+                1, 
+                currentUser.Role);
+            
+            // Hiển thị thông báo đã thêm vào giỏ hàng
+            await JSRuntime.InvokeVoidAsync("alert", $"{product.ProductName} has been added to your cart!");
+            
+            // Tùy chọn: Chuyển hướng đến trang giỏ hàng
+            if (await JSRuntime.InvokeAsync<bool>("confirm", "View your cart now?"))
+            {
+                NavigationManager.NavigateTo("/cart");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error adding to cart: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", "Error adding item to cart");
+        }
+    }
+    
+    private string GetProxyImageUrl(string originalUrl)
+    {
+        if (string.IsNullOrEmpty(originalUrl))
+            return "";
+            
+        if (originalUrl.Contains("facebook.com") || originalUrl.Contains("fbcdn.net"))
+        {
+            return $"/api/proxy/image?url={Uri.EscapeDataString(originalUrl)}";
+        }
+        
+        return originalUrl;
+    }
+    
+    private void NavigateBack()
+    {
+        NavigationManager.NavigateTo("/");
+    }
+} 

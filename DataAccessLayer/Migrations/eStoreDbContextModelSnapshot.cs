@@ -30,8 +30,14 @@ namespace DataAccessLayer.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CartId"));
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("MemberId")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("CartId");
 
@@ -40,7 +46,7 @@ namespace DataAccessLayer.Migrations
                     b.ToTable("Carts");
                 });
 
-            modelBuilder.Entity("DataAccessLayer.Entities.CartDetail", b =>
+            modelBuilder.Entity("DataAccessLayer.Entities.CartItem", b =>
                 {
                     b.Property<int>("CartId")
                         .HasColumnType("int");
@@ -48,17 +54,29 @@ namespace DataAccessLayer.Migrations
                     b.Property<int>("ProductId")
                         .HasColumnType("int");
 
+                    b.Property<int>("CartItemId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
 
                     b.Property<decimal>("TotalPrice")
                         .HasColumnType("decimal(18, 2)");
 
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("decimal(18, 2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("CartId", "ProductId");
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("CartDetails");
+                    b.ToTable("CartItems");
                 });
 
             modelBuilder.Entity("DataAccessLayer.Entities.Categories", b =>
@@ -210,6 +228,11 @@ namespace DataAccessLayer.Migrations
                     b.Property<int>("UnitsInStock")
                         .HasColumnType("int");
 
+                    b.Property<string>("UrlImage")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<string>("Weight")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -263,10 +286,10 @@ namespace DataAccessLayer.Migrations
                     b.Navigation("Member");
                 });
 
-            modelBuilder.Entity("DataAccessLayer.Entities.CartDetail", b =>
+            modelBuilder.Entity("DataAccessLayer.Entities.CartItem", b =>
                 {
                     b.HasOne("DataAccessLayer.Entities.Cart", "Cart")
-                        .WithMany("CartDetails")
+                        .WithMany("CartItems")
                         .HasForeignKey("CartId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -336,7 +359,7 @@ namespace DataAccessLayer.Migrations
 
             modelBuilder.Entity("DataAccessLayer.Entities.Cart", b =>
                 {
-                    b.Navigation("CartDetails");
+                    b.Navigation("CartItems");
                 });
 
             modelBuilder.Entity("DataAccessLayer.Entities.Categories", b =>

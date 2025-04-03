@@ -1,4 +1,5 @@
 ﻿using BLL.DTOs;
+using DataAccessLayer.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,6 +12,16 @@ namespace BLL.Services.IServices
     {
         Task<List<ProductSelectModel>> GetProductsAsync();
         Task<bool> CheckStockAvailabilityAsync(int productId, int quantity);
-
+        Task<IEnumerable<ProductDTO>> GetAllProductsAsync();
+        Task<ProductDTO> GetProductByIdAsync(int productId);
+        Task<ProductDTO> CreateProductAsync(CreateProductDTO productDto);
+        Task<ProductDTO> UpdateProductAsync(UpdateProductDTO productDto);
+        Task<bool> DeleteProductAsync(int productId);
+        
+        // Phương thức tìm kiếm sản phẩm
+        Task<IEnumerable<ProductDTO>> SearchProductsAsync(string? productName, decimal? minPrice, decimal? maxPrice, string? categoryName);
+        
+        // Phương thức lấy sản phẩm theo trang
+        Task<(IEnumerable<ProductDTO> Products, int TotalCount)> GetPagedProductsAsync(int pageNumber, int pageSize);
     }
 }

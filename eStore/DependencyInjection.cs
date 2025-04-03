@@ -1,8 +1,10 @@
-﻿using BLL.Services.IServices;
+﻿using BLL.Mapping;
+using BLL.Services.IServices;
 using BLL.Services;
 using DataAccessLayer.Repository.Interfaces;
 using DataAccessLayer.Repository;
 using DataAccessLayer.UnitOfWork;
+using AutoMapper;
 
 namespace eStore
 {
@@ -24,6 +26,15 @@ namespace eStore
             services.AddScoped<ICartDetailRepository, CartDetailRepository>();
             services.AddScoped<ITrackingOrderService, TracingOrderService>();
             services.AddScoped<ICartRepository, CartRepository>();
+            
+            // Register AutoMapper manually
+            var mapperConfig = new MapperConfiguration(cfg =>
+            {
+                cfg.AddProfile<MappingProfile>();
+            });
+            IMapper mapper = mapperConfig.CreateMapper();
+            services.AddSingleton(mapper);
+            
             return services;
         }
     }

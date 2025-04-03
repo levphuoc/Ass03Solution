@@ -2,7 +2,6 @@
 using BLL.Services;
 using DataAccessLayer.Data;
 using DataAccessLayer.UnitOfWork;
-using eStore.Components;
 using Microsoft.EntityFrameworkCore;
 using BLL.Hubs;
 using DataAccessLayer.Repository.Interfaces;
@@ -11,6 +10,9 @@ using DataAccessLayer.Entities;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using eStore;
 using BLL.Mappings;
+using eStore.Components;
+using Microsoft.AspNetCore.Components;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,8 +20,24 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Add controller support
+// Thêm CORS policy
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
+// Thêm controllers cho API
 builder.Services.AddControllers();
+
+// Add HttpClient for API calls
+builder.Services.AddHttpClient();
+
+// Add controller support
 builder.Services.AddApplicationServices();
 // Change from Scoped to Transient to prevent concurrent access issues
 builder.Services.AddDbContext<EStoreDbContext>(options =>
@@ -30,9 +48,14 @@ builder.Services.AddDbContext<EStoreDbContext>(options =>
     .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
 
 // Changed from Scoped to Transient to prevent concurrent access issues
-//builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
-builder.Services.AddAutoMapper(typeof(MappingProfiles));
-// Authentication
+builder.Services.AddTransient<IUnitOfWork, UnitOfWork>();
+
+// Auth providers
+builder.Services.AddAuthenticationCore();
+builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddHttpContextAccessor();
+
+// Auth
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -53,6 +76,17 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
             }
             await Task.CompletedTask;
         };
+        // Add debugging for authentication events
+        options.Events.OnValidatePrincipal = async context =>
+        {
+            var roles = context.Principal.Claims
+                .Where(c => c.Type == ClaimTypes.Role)
+                .Select(c => c.Value)
+                .ToList();
+            
+            Console.WriteLine($"User authenticated. Roles: {string.Join(", ", roles)}");
+            await Task.CompletedTask;
+        };
     });
 
 // Authorization
@@ -65,8 +99,6 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("RequireUser", policy => policy.RequireRole("Admin", "Staff", "Member", "User"));
 });
 
-builder.Services.AddHttpContextAccessor();
-
 // SignalR
 builder.Services.AddSignalR();
 
@@ -76,6 +108,8 @@ var app = builder.Build();
 app.MapHub<SalesReportHub>("/salesReportHub");
 app.MapHub<OrderHub>("/orderHub");
 app.MapHub<MemberHub>("/memberHub");
+app.MapHub<ProductHub>("/productHub");
+app.MapHub<CategoryHub>("/categoryHub");
 
 
 // Test DB Connection
@@ -102,16 +136,18 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Sử dụng CORS policy
+app.UseCors("AllowAll");
+
 app.UseStaticFiles();
 app.UseAntiforgery();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapControllers();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
-
-// Map controllers
-app.MapControllers();
 
 app.Run();

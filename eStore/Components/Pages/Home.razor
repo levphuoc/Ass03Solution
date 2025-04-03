@@ -1,7 +1,274 @@
 ﻿@page "/"
+@rendermode InteractiveServer
+@using BLL.DTOs
+@using BLL.Services.IServices
+@using BLL.Services
+@using Microsoft.AspNetCore.Authorization
+@using System.Security.Claims
+@inject IProductService ProductService
+@inject IAuthService AuthService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject ICartService CartService
 
-<PageTitle>Home</PageTitle>
+<PageTitle>eStore - Home</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="container">
+    @if (currentUser != null)
+    {
+        <h1>Welcome, @currentUser.CompanyName!</h1>
+        <div class="mb-3">
+            <span class="badge bg-info">Your role: @currentUser.Role</span>
+        </div>
+       
+    }
+    else
+    {
+        <h1>Welcome to eStore</h1>
+    }
+    
+    <!-- Khu vực tìm kiếm sản phẩm -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Search Products</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label for="productName" class="form-label">Product Name</label>
+                    <input type="text" id="productName" class="form-control" @bind="searchProductName" placeholder="Enter product name" />
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label for="minPrice" class="form-label">Min Price</label>
+                    <input type="number" id="minPrice" class="form-control" @bind="searchMinPrice" placeholder="Min price" min="0" />
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label for="maxPrice" class="form-label">Max Price</label>
+                    <input type="number" id="maxPrice" class="form-control" @bind="searchMaxPrice" placeholder="Max price" min="0" />
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="categoryName" class="form-label">Category</label>
+                    <input type="text" id="categoryName" class="form-control" @bind="searchCategoryName" placeholder="Enter category name" />
+                </div>
+                <div class="col-md-2 mb-3 d-flex align-items-end">
+                    <button class="btn btn-primary w-100" @onclick="SearchProducts">Search</button>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <button class="btn btn-outline-secondary" @onclick="ResetSearch">Reset Filters</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <h3>Our Products</h3>
+    
+    @if (products == null)
+    {
+        <div class="d-flex justify-content-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    }
+    else if (!products.Any())
+    {
+        <div class="alert alert-info">No products available matching your search criteria.</div>
+    }
+    else
+    {
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            @foreach (var product in products)
+            {
+                <div class="col">
+                    <div class="card h-100">
+                        <div class="card-img-top text-center p-3" style="cursor: pointer;" @onclick="() => NavigateToProductDetail(product.ProductId)">
+                            @if (!string.IsNullOrEmpty(product.UrlImage))
+                            {
+                                <img src="@GetProxyImageUrl(product.UrlImage)" alt="@product.ProductName" 
+                                     style="max-height: 150px; object-fit: contain;"
+                                     onerror="this.onerror=null; this.src='images/no-image.png';" />
+                            }
+                            else
+                            {
+                                <img src="images/no-image.png" alt="No Image" style="max-height: 150px; object-fit: contain;" />
+                            }
+                        </div>
+                        <div class="card-body" style="cursor: pointer;" @onclick="() => NavigateToProductDetail(product.ProductId)">
+                            <h5 class="card-title">@product.ProductName</h5>
+                            <p class="card-text">
+                                <strong>Category:</strong> <span class="badge bg-primary">@product.CategoryName</span>
+                            </p>
+                            <p class="card-text">
+                                <strong>Price:</strong> @($"{product.UnitPrice:C}")
+                            </p>
+                            <p class="card-text">
+                                <strong>In Stock:</strong> @product.UnitsInStock
+                            </p>
+                        </div>
+                        <div class="card-footer d-grid gap-2">
+                            <button class="btn btn-primary mb-1" @onclick="() => NavigateToProductDetail(product.ProductId)">View Details</button>
+                            <button class="btn btn-success" @onclick="() => AddToCart(product)">Add to Cart</button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+        
+        <!-- Pagination Controls -->
+        @if (totalPages > 1)
+        {
+            <div class="d-flex justify-content-center mt-4">
+                <nav>
+                    <ul class="pagination">
+                        <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                            <a class="page-link" href="javascript:void(0)" @onclick="() => GoToPage(currentPage - 1)">Previous</a>
+                        </li>
+                        
+                        @for (int i = 1; i <= totalPages; i++)
+                        {
+                            var pageNumber = i;
+                            <li class="page-item @(currentPage == pageNumber ? "active" : "")">
+                                <a class="page-link" href="javascript:void(0)" @onclick="() => GoToPage(pageNumber)">@pageNumber</a>
+                            </li>
+                        }
+                        
+                        <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                            <a class="page-link" href="javascript:void(0)" @onclick="() => GoToPage(currentPage + 1)">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        }
+    }
+</div>
 
-Welcome to your new app.
+@code {
+    private DataAccessLayer.Entities.Member? currentUser;
+    private IEnumerable<ProductDTO>? products;
+    private int totalCount;
+    private int currentPage = 1;
+    private int pageSize = 3;
+    private int totalPages => (int)Math.Ceiling((double)totalCount / pageSize);
+    
+    // Biến tìm kiếm
+    private string? searchProductName;
+    private decimal? searchMinPrice;
+    private decimal? searchMaxPrice;
+    private string? searchCategoryName;
+    private bool isSearching = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentUser = await AuthService.GetCurrentUserAsync();
+        await LoadProducts();
+    }
+
+    private async Task LoadProducts()
+    {
+        try
+        {
+            if (isSearching)
+            {
+                products = await ProductService.SearchProductsAsync(
+                    searchProductName, 
+                    searchMinPrice, 
+                    searchMaxPrice, 
+                    searchCategoryName
+                );
+                totalCount = products.Count();
+            }
+            else
+            {
+                var result = await ProductService.GetPagedProductsAsync(currentPage, pageSize);
+                products = result.Products;
+                totalCount = result.TotalCount;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading products: {ex.Message}");
+        }
+    }
+    
+    private async Task SearchProducts()
+    {
+        isSearching = true;
+        currentPage = 1;
+        await LoadProducts();
+    }
+    
+    private async Task ResetSearch()
+    {
+        searchProductName = null;
+        searchMinPrice = null;
+        searchMaxPrice = null;
+        searchCategoryName = null;
+        isSearching = false;
+        currentPage = 1;
+        await LoadProducts();
+    }
+    
+    private async Task GoToPage(int page)
+    {
+        if (page < 1 || page > totalPages)
+            return;
+            
+        currentPage = page;
+        await LoadProducts();
+    }
+    
+    private async Task AddToCart(ProductDTO product)
+    {
+        if (currentUser == null)
+        {
+            // Nếu chưa đăng nhập, chuyển hướng đến trang đăng nhập
+            await JSRuntime.InvokeVoidAsync("alert", "Please login to add items to your cart");
+            NavigationManager.NavigateTo("/login");
+            return;
+        }
+        
+        try
+        {
+            // Thêm sản phẩm vào giỏ hàng với số lượng là 1
+            var cart = await CartService.AddToCartAsync(
+                currentUser.MemberId, 
+                product.ProductId, 
+                1, 
+                currentUser.Role);
+            
+            // Hiển thị thông báo đã thêm vào giỏ hàng
+            await JSRuntime.InvokeVoidAsync("alert", $"{product.ProductName} has been added to your cart!");
+            
+            // Tùy chọn: Chuyển hướng đến trang giỏ hàng
+            if (await JSRuntime.InvokeAsync<bool>("confirm", "View your cart now?"))
+            {
+                NavigationManager.NavigateTo("/cart");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error adding to cart: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", "Error adding item to cart");
+        }
+    }
+    
+    private string GetProxyImageUrl(string originalUrl)
+    {
+        if (string.IsNullOrEmpty(originalUrl))
+            return "";
+            
+        if (originalUrl.Contains("facebook.com") || originalUrl.Contains("fbcdn.net"))
+        {
+            return $"/api/proxy/image?url={Uri.EscapeDataString(originalUrl)}";
+        }
+        
+        return originalUrl;
+    }
+    
+    private void NavigateToProductDetail(int productId)
+    {
+        NavigationManager.NavigateTo($"/product/{productId}");
+    }
+}

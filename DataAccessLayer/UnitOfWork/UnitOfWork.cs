@@ -24,7 +24,8 @@ namespace DataAccessLayer.UnitOfWork
             Carts = new CartRepository(_context);
             CartDetails = new CartDetailRepository(_context);
             TrackingOrders = new TrackingRepository(_context);
-
+            Categories = new CategoryRepository(_context);
+            Carts = new CartRepository(_context);
         }
 
         public IMemberRepository Members { get; private set; }
@@ -32,9 +33,10 @@ namespace DataAccessLayer.UnitOfWork
         public IOrderRepository Orders { get; private set; }
         public IOrderDetailRepository OrderDetails { get; private set; }
         public ICartRepository Carts { get; private set; }
-
        public ICartDetailRepository CartDetails { get; private set; }
         public ITrackingOrderRepository TrackingOrders { get; private set; }
+        public ICategoryRepository Categories { get; private set; }
+        public ICartRepository Carts { get; private set; }
 
         public async Task<int> SaveChangesAsync()
         {
