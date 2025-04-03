@@ -21,17 +21,23 @@ namespace DataAccessLayer.UnitOfWork
             Products = new ProductRepository(_context);
             Orders = new OrderRepository(_context);
             OrderDetails = new OrderDetailRepository(_context);
-            Categories = new CategoryRepository(_context);
             Carts = new CartRepository(_context);
+            CartDetails = new CartDetailRepository(_context);
+            TrackingOrders = new TrackingRepository(_context);
+            Categories = new CategoryRepository(_context);
+            
         }
 
         public IMemberRepository Members { get; private set; }
         public IProductRepository Products { get; private set; }
         public IOrderRepository Orders { get; private set; }
         public IOrderDetailRepository OrderDetails { get; private set; }
-        public ICategoryRepository Categories { get; private set; }
         public ICartRepository Carts { get; private set; }
+       public ICartDetailRepository CartDetails { get; private set; }
+        public ITrackingOrderRepository TrackingOrders { get; private set; }
+        public ICategoryRepository Categories { get; private set; }
 
+        
         public async Task<int> SaveChangesAsync()
         {
             return await _context.SaveChangesAsync();

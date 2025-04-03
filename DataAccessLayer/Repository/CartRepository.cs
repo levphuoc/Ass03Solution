@@ -10,9 +10,66 @@ using System.Threading.Tasks;
 
 namespace DataAccessLayer.Repository
 {
-    public class CartRepository : GenericRepository<Cart>, ICartRepository
+    public class CartRepository: GenericRepository<Cart>, ICartRepository
     {
+       
+
         public CartRepository(EStoreDbContext context) : base(context) { }
+
+        public async Task<List<CartItem>> GetCartItemsByCartIdAsync(int userId)
+        {
+
+            var cart = await _context.Carts.FirstOrDefaultAsync(n => n.MemberId == userId);
+            if (cart == null)
+            {
+               
+                return new List<CartItem>(); 
+            }
+
+            var cartDetails = await _context.CartItems
+                                            .Where(ci => ci.CartId == cart.CartId)
+                                            .Include(ci => ci.Product)
+                                            .ToListAsync();
+
+            if (cartDetails == null || !cartDetails.Any()) 
+            {
+               
+                return new List<CartItem>();
+            }
+
+            return cartDetails; 
+        }
+       
+        public async Task DeleteCartAndItemsByMemberIdAsync(int memberId)
+        {
+            
+            var cart = await _context.Carts.FirstOrDefaultAsync(c => c.MemberId == memberId);
+
+            if (cart == null)
+            {
+                
+                return;
+            }
+
+            int cartId = cart.CartId;
+         
+
+           
+            var cartItems = await _context.CartDetails.Where(ci => ci.CartId == cartId).ToListAsync();
+
+            if (cartItems.Any())
+            {
+               
+                foreach (var cartItem in cartItems)
+                {
+                    _context.CartDetails.Remove(cartItem);  
+                }
+            }
+            _context.Carts.Remove(cart);
+            await _context.SaveChangesAsync();
+
+        }
+
 
         public async Task<Cart> GetCartWithItemsByMemberIdAsync(int memberId)
         {
@@ -138,5 +195,8 @@ namespace DataAccessLayer.Repository
             await _context.SaveChangesAsync();
             return true;
         }
+
+
+        
     }
 } 

@@ -1,4 +1,5 @@
 ﻿using BLL.Services.IServices;
+using DataAccessLayer.Entities;
 using Microsoft.AspNetCore.SignalR;
 using System;
 using System.Collections.Generic;
@@ -21,6 +22,7 @@ namespace BLL.Hubs
         {
             await _reportService.GenerateReportAsync(startDate, endDate);
         }
+      
     }
 
 

@@ -1,10 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using DataAccessLayer.Enum;
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DataAccessLayer.Entities
 {
@@ -13,11 +10,17 @@ namespace DataAccessLayer.Entities
         [Key]
         public int TracingOrderId { get; set; }
 
-        [Required, MaxLength(50)]
-        public string OrderStatus { get; set; }
+        public OrderStatus Status { get; set; }
+
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+        public DateTime UpdatedAt { get; set; } = DateTime.Now; 
 
         [Required]
-        public string MemberId { get; set; }
+        public int MemberId { get; set; }
+
+        public string MemberName { get; set; } = string.Empty;
+
 
         [ForeignKey("Order")]
         public int OrderId { get; set; }

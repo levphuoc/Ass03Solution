@@ -1,4 +1,5 @@
-﻿using System;
+﻿using BLL.DTOs;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,5 +9,8 @@ namespace BLL.Services.IServices
 {
     public interface IOrderDetailService
     {
+        Task AddOrderDetailsAsync(IEnumerable<OrderItemDTO> orderDetails);
+        Task<List<OrderItemDTO>> GetOrderItemsByOrderIdAsync(int orderId);
+        Task DeleteOrderItemsByOrderIdAsync(int orderId);
     }
 }

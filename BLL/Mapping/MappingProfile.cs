@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using BLL.DTOs;
 using DataAccessLayer.Entities;
 using System;
@@ -25,6 +25,9 @@ namespace BLL.Mapping
             CreateMap<CreateCategoryDTO, Categories>();
             CreateMap<UpdateCategoryDTO, Categories>();
             CreateMap<Categories, UpdateCategoryDTO>();
+            CreateMap<TrackingOrderDTO, TracingOrder>()
+                .ForMember(dest => dest.MemberId, opt => opt.Ignore()) // Nếu Id được tự động tạo bởi CSDL
+                .ReverseMap();
         }
     }
 } 

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace DataAccessLayer.Repository.Interfaces
 {
-    public interface IOrderDetailRepository
+    public interface IOrderDetailRepository : IRepository<OrderDetail>
     {
         //    Task<OrderDetail> GetOrderDetail(int orderId, int productId);
         //    Task<IEnumerable<OrderDetail>> GetOrderDetailsByOrderId(int orderId);

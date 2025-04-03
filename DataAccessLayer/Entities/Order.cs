@@ -5,6 +5,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using DataAccessLayer.Enum;
 
 namespace DataAccessLayer.Entities
 {
@@ -24,8 +25,8 @@ namespace DataAccessLayer.Entities
 
         public decimal? Freight { get; set; }
 
-        [Required, MaxLength(20)]
-        public string Status { get; set; }
+        
+        public OrderStatus Status { get; set; }
 
         public Member Member { get; set; }
         public ICollection<OrderDetail> OrderDetails { get; set; }
