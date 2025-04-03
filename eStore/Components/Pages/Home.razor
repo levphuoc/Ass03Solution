@@ -235,8 +235,7 @@
             var cart = await CartService.AddToCartAsync(
                 currentUser.MemberId, 
                 product.ProductId, 
-                1, 
-                currentUser.Role);
+                1);
             
             // Hiển thị thông báo đã thêm vào giỏ hàng
             await JSRuntime.InvokeVoidAsync("alert", $"{product.ProductName} has been added to your cart!");

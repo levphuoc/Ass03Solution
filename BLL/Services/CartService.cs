@@ -1,19 +1,13 @@
-﻿using BLL.Hubs;
+﻿using BLL.DTOs;
 using BLL.Services.IServices;
 using DataAccessLayer.Entities;
 using DataAccessLayer.Repository.Interfaces;
 using DataAccessLayer.UnitOfWork;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.Logging;  // Thêm namespace cho ILogger
-using AutoMapper;
-using BLL.DTOs;
-using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace BLL.Services
@@ -24,67 +18,18 @@ namespace BLL.Services
         private readonly IJSRuntime _jsRuntime;
         private readonly IProductService _productService;
         private readonly ILogger<CartService> _logger;
-        private const string CartKey = "estore_cart_";
-        private readonly ICartRepository _cartRepository;
 
-        public CartService(IJSRuntime jsRuntime, IProductService productService, IUnitOfWork unitOfWork, ICartRepository cartRepository)
+        public CartService(IJSRuntime jsRuntime, IProductService productService, 
+                          IUnitOfWork unitOfWork, ILogger<CartService> logger = null)
         {
             _jsRuntime = jsRuntime;
             _productService = productService;
             _unitOfWork = unitOfWork;
-            _cartRepository = cartRepository;
+            _logger = logger;
         }
 
-        public async Task<List<CartItem>> GetAllCartItemsByUserId(int userId)
-        {
-            return await _cartRepository.GetCartItemsByCartIdAsync(userId);
-        }
-
-        public async Task DeleteCartAndItemsByUserIdAsync(int MemberId)
-        {
-            await _cartRepository.DeleteCartAndItemsByMemberIdAsync(MemberId);
-        }
-
-        private string GetCartKey(int memberId) => $"{CartKey}{memberId}";
-
-        private bool ShouldUseLocalStorage(string role)
-        {
-            return role == "Admin" || role == "Staff" || role == "Deliverer";
-        }
-
-        public async Task<CartDTO> GetCartAsync(int memberId, string role)
-        {
-            if (ShouldUseLocalStorage(role))
-            {
-                return await GetCartFromLocalStorageAsync(memberId);
-            }
-            else
-            {
-                return await GetCartFromDatabaseAsync(memberId);
-            }
-        }
-
-        private async Task<CartDTO> GetCartFromLocalStorageAsync(int memberId)
-        {
-            try
-            {
-                var cartJson = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", GetCartKey(memberId));
-                if (string.IsNullOrEmpty(cartJson))
-                {
-                    return new CartDTO();
-                }
-
-                var cart = JsonSerializer.Deserialize<CartDTO>(cartJson) ?? new CartDTO();
-                return cart;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error fetching cart from localStorage: {ex.Message}");
-                return new CartDTO();
-            }
-        }
-
-        private async Task<CartDTO> GetCartFromDatabaseAsync(int memberId)
+        // Lấy thông tin giỏ hàng từ DB
+        public async Task<CartDTO> GetCartAsync(int memberId)
         {
             try
             {
@@ -112,169 +57,87 @@ namespace BLL.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error fetching cart from database: {ex.Message}");
+                _logger?.LogError(ex, $"Error fetching cart for member {memberId}");
                 return new CartDTO();
             }
         }
 
-        public async Task<CartDTO> AddToCartAsync(int memberId, int productId, int quantity, string role)
-        {
-            if (quantity <= 0)
-                quantity = 1;
-
-            var product = await _productService.GetProductByIdAsync(productId);
-            if (product == null)
-                return new CartDTO();
-
-            if (ShouldUseLocalStorage(role))
-            {
-                return await AddToLocalStorageCartAsync(memberId, product, quantity);
-            }
-            else
-            {
-                return await AddToDatabaseCartAsync(memberId, product, quantity);
-            }
-        }
-
-        private async Task<CartDTO> AddToLocalStorageCartAsync(int memberId, ProductDTO product, int quantity)
-        {
-            var cart = await GetCartFromLocalStorageAsync(memberId);
-            
-            var existingItem = cart.Items.FirstOrDefault(i => i.ProductId == product.ProductId);
-            if (existingItem != null)
-            {
-                // Update quantity if item already in cart
-                existingItem.Quantity += quantity;
-            }
-            else
-            {
-                // Add new item to cart
-                cart.Items.Add(new CartItemDTO
-                {
-                    ProductId = product.ProductId,
-                    ProductName = product.ProductName,
-                    ProductImage = product.UrlImage ?? "",
-                    UnitPrice = product.UnitPrice,
-                    Quantity = quantity,
-                    CategoryName = product.CategoryName ?? ""
-                });
-            }
-
-            await SaveCartToLocalStorageAsync(memberId, cart);
-            return cart;
-        }
-
-        private async Task<CartDTO> AddToDatabaseCartAsync(int memberId, ProductDTO product, int quantity)
-        {
-            await _unitOfWork.Carts.AddItemToCartAsync(
-                memberId, 
-                product.ProductId, 
-                quantity, 
-                product.UnitPrice);
-            
-            return await GetCartFromDatabaseAsync(memberId);
-        }
-
-        public async Task<CartDTO> UpdateCartItemAsync(int memberId, int productId, int quantity, string role)
-        {
-            if (ShouldUseLocalStorage(role))
-            {
-                return await UpdateLocalStorageCartItemAsync(memberId, productId, quantity);
-            }
-            else
-            {
-                return await UpdateDatabaseCartItemAsync(memberId, productId, quantity);
-            }
-        }
-
-        private async Task<CartDTO> UpdateLocalStorageCartItemAsync(int memberId, int productId, int quantity)
-        {
-            var cart = await GetCartFromLocalStorageAsync(memberId);
-            
-            var itemToUpdate = cart.Items.FirstOrDefault(i => i.ProductId == productId);
-            if (itemToUpdate == null)
-                return cart;
-
-            if (quantity <= 0)
-            {
-                // Remove item if quantity is 0 or negative
-                cart.Items.Remove(itemToUpdate);
-            }
-            else
-            {
-                // Update quantity
-                itemToUpdate.Quantity = quantity;
-            }
-
-            await SaveCartToLocalStorageAsync(memberId, cart);
-            return cart;
-        }
-
-        private async Task<CartDTO> UpdateDatabaseCartItemAsync(int memberId, int productId, int quantity)
-        {
-            await _unitOfWork.Carts.UpdateCartItemQuantityAsync(memberId, productId, quantity);
-            return await GetCartFromDatabaseAsync(memberId);
-        }
-
-        public async Task<CartDTO> RemoveFromCartAsync(int memberId, int productId, string role)
-        {
-            if (ShouldUseLocalStorage(role))
-            {
-                return await RemoveFromLocalStorageCartAsync(memberId, productId);
-            }
-            else
-            {
-                return await RemoveFromDatabaseCartAsync(memberId, productId);
-            }
-        }
-
-        private async Task<CartDTO> RemoveFromLocalStorageCartAsync(int memberId, int productId)
-        {
-            var cart = await GetCartFromLocalStorageAsync(memberId);
-            
-            var itemToRemove = cart.Items.FirstOrDefault(i => i.ProductId == productId);
-            if (itemToRemove != null)
-            {
-                cart.Items.Remove(itemToRemove);
-                await SaveCartToLocalStorageAsync(memberId, cart);
-            }
-
-            return cart;
-        }
-
-        private async Task<CartDTO> RemoveFromDatabaseCartAsync(int memberId, int productId)
-        {
-            await _unitOfWork.Carts.RemoveItemFromCartAsync(memberId, productId);
-            return await GetCartFromDatabaseAsync(memberId);
-        }
-
-        public async Task<bool> ClearCartAsync(int memberId, string role)
-        {
-            if (ShouldUseLocalStorage(role))
-            {
-                return await ClearLocalStorageCartAsync(memberId);
-            }
-            else
-            {
-                return await ClearDatabaseCartAsync(memberId);
-            }
-        }
-
-        private async Task<bool> ClearLocalStorageCartAsync(int memberId)
+        // Lấy danh sách CartItem từ DB
+        public async Task<List<CartItem>> GetCartItemsAsync(int memberId)
         {
             try
             {
-                await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", GetCartKey(memberId));
-                return true;
+                return await _unitOfWork.Carts.GetCartItemsByCartIdAsync(memberId);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error clearing localStorage cart: {ex.Message}");
-                return false;
+                _logger?.LogError(ex, $"Error fetching cart items for member {memberId}");
+                return new List<CartItem>();
             }
         }
 
-        private async Task<bool> ClearDatabaseCartAsync(int memberId)
+        // Thêm sản phẩm vào giỏ hàng
+        public async Task<CartDTO> AddToCartAsync(int memberId, int productId, int quantity)
+        {
+            try
+            {
+                if (quantity <= 0)
+                    quantity = 1;
+
+                var product = await _productService.GetProductByIdAsync(productId);
+                if (product == null)
+                {
+                    _logger?.LogWarning($"Cannot add to cart - Product {productId} not found");
+                    return new CartDTO();
+                }
+
+                await _unitOfWork.Carts.AddItemToCartAsync(
+                    memberId, 
+                    product.ProductId, 
+                    quantity, 
+                    product.UnitPrice);
+                
+                return await GetCartAsync(memberId);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, $"Error adding product {productId} to cart for member {memberId}");
+                return new CartDTO();
+            }
+        }
+
+        // Cập nhật số lượng sản phẩm trong giỏ hàng
+        public async Task<CartDTO> UpdateCartItemAsync(int memberId, int productId, int quantity)
+        {
+            try
+            {
+                await _unitOfWork.Carts.UpdateCartItemQuantityAsync(memberId, productId, quantity);
+                return await GetCartAsync(memberId);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, $"Error updating product {productId} quantity in cart for member {memberId}");
+                return new CartDTO();
+            }
+        }
+
+        // Xóa một sản phẩm khỏi giỏ hàng
+        public async Task<CartDTO> RemoveFromCartAsync(int memberId, int productId)
+        {
+            try
+            {
+                await _unitOfWork.Carts.RemoveItemFromCartAsync(memberId, productId);
+                return await GetCartAsync(memberId);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, $"Error removing product {productId} from cart for member {memberId}");
+                return new CartDTO();
+            }
+        }
+
+        // Xóa toàn bộ giỏ hàng
+        public async Task<bool> ClearCartAsync(int memberId)
         {
             try
             {
@@ -282,21 +145,22 @@ namespace BLL.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error clearing database cart: {ex.Message}");
+                _logger?.LogError(ex, $"Error clearing cart for member {memberId}");
                 return false;
             }
         }
 
-        private async Task SaveCartToLocalStorageAsync(int memberId, CartDTO cart)
+        // Xóa giỏ hàng khi đã tạo đơn hàng thành công
+        public async Task DeleteCartAfterOrderCreateAsync(int memberId)
         {
             try
             {
-                var cartJson = JsonSerializer.Serialize(cart);
-                await _jsRuntime.InvokeVoidAsync("localStorage.setItem", GetCartKey(memberId), cartJson);
+                await _unitOfWork.Carts.ClearCartAsync(memberId);
+                _logger?.LogInformation($"Cart cleared for member {memberId} after order creation");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error saving cart to localStorage: {ex.Message}");
+                _logger?.LogError(ex, $"Error clearing cart for member {memberId} after order creation");
             }
         }
     }

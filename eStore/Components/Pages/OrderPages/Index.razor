@@ -294,12 +294,16 @@ else
         }
         
         Console.WriteLine("Loading orders for member ID: " + currentUser.MemberId);
-        var result = await OrderService.GetFilteredOrdersAsync(pageNumber, pageSize, searchText, orderDate, selectedStatus);
+        var result = await OrderService.GetFilteredOrdersAsync(
+            pageNumber, 
+            pageSize, 
+            searchText, 
+            orderDate, 
+            selectedStatus,
+            currentUser.MemberId);
         
-        // Filter orders by current user
-        var userOrders = result.Items.Where(o => o.MemberId == currentUser.MemberId).ToList();
-        orders = userOrders;
-        totalOrders = orders.Count;
+        orders = result.Items.ToList();
+        totalOrders = result.TotalCount;
         totalPages = Math.Max(1, (int)Math.Ceiling(totalOrders / (decimal)pageSize));
         
         currentPage = Math.Min(currentPage, totalPages);

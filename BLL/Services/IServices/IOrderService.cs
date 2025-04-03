@@ -1,5 +1,4 @@
-﻿
-using BLL.DTOs;
+﻿using BLL.DTOs;
 using DataAccessLayer.Entities;
 using DataAccessLayer.Enum;
 using System;
@@ -19,7 +18,8 @@ namespace BLL.Services.IServices
      int pageSize,
      string? searchText = null,
      DateTime? orderDate = null,
-     string? status = null);
+     string? status = null,
+     int? memberId = null);
         Task<int> CreateOrderAsync(OrderDTO dto);
         Task<OrderDTO> GetOrderByIdAsync(int orderId); 
         Task UpdateOrderAsync(OrderDTO order);
