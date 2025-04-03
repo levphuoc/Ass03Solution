@@ -21,12 +21,14 @@ namespace DataAccessLayer.UnitOfWork
             Products = new ProductRepository(_context);
             Orders = new OrderRepository(_context);
             OrderDetails = new OrderDetailRepository(_context);
+            Categories = new CategoryRepository(_context);
         }
 
         public IMemberRepository Members { get; private set; }
         public IProductRepository Products { get; private set; }
         public IOrderRepository Orders { get; private set; }
         public IOrderDetailRepository OrderDetails { get; private set; }
+        public ICategoryRepository Categories { get; private set; }
 
         public async Task<int> SaveChangesAsync()
         {
