@@ -161,8 +161,7 @@ else
                                         <div class="d-flex gap-2 justify-content-center">
 
                                             <!-- Edit Button -->
-                                            @if (order.Status == DataAccessLayer.Enum.OrderStatus.Spending ||
-                                            order.Status == DataAccessLayer.Enum.OrderStatus.Approve)
+                                            @if (order.Status == DataAccessLayer.Enum.OrderStatus.Spending)
                                             {
                                                 <NavLink class="btn btn-sm btn-outline-primary me-1" href="@($"orders/edit?orderid={order.OrderId}")">Edit</NavLink>
                                             }
