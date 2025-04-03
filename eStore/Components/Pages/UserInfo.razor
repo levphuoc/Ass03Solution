@@ -202,6 +202,12 @@
                             </div>
 
                             <div class="mb-3">
+                                <label for="country" class="form-label">Country</label>
+                                <InputText id="country" @bind-Value="profileModel.Country" class="form-control" />
+                                <ValidationMessage For="@(() => profileModel.Country)" />
+                            </div>
+
+                            <div class="mb-3">
                                 <label for="password" class="form-label">Password (leave blank to keep current)</label>
                                 <InputText id="password" @bind-Value="profileModel.Password" type="password" class="form-control" />
                                 <ValidationMessage For="@(() => profileModel.Password)" />
@@ -275,6 +281,7 @@
                     Email = currentUser.Email,
                     CompanyName = currentUser.CompanyName,
                     City = currentUser.City,
+                    Country = currentUser.Country,
                     // Password is left blank intentionally
                 };
             }
@@ -314,38 +321,50 @@
             if (currentUser == null)
             {
                 updateError = true;
+                Console.WriteLine("UpdateProfile: Current user is null");
                 return;
             }
+
+            Console.WriteLine($"Updating profile for member ID: {currentUser.MemberId}, Email: {profileModel.Email}, Company: {profileModel.CompanyName}, City: {profileModel.City}, Country: {profileModel.Country}");
 
             // Use the injected MemberService to update profile
             var result = await MemberService.UpdateProfileAsync(
                 currentUser.MemberId,
                 profileModel.CompanyName,
                 profileModel.City,
+                profileModel.Country,
                 profileModel.Email,
                 profileModel.Password
             );
 
-            updateSuccess = result;
-            updateError = !result;
-
-            // Reload user data if successful
-            if (result)
+            if (!result)
             {
-                // Also update the authentication cookie
-                await AuthService.UpdateProfileAsync(
-                    profileModel.CompanyName,
-                    profileModel.City,
-                    profileModel.Email,
-                    profileModel.Password
-                );
-                
-                await LoadDbUserInfo();
+                updateError = true;
+                Console.WriteLine("MemberService.UpdateProfileAsync returned false");
+                return;
             }
+
+            updateSuccess = true;
+            // Also update the authentication cookie
+            var authResult = await AuthService.UpdateProfileAsync(
+                profileModel.CompanyName,
+                profileModel.City,
+                profileModel.Country,
+                profileModel.Email,
+                profileModel.Password
+            );
+
+            if (!authResult)
+            {
+                Console.WriteLine("AuthService.UpdateProfileAsync returned false, but profile was updated in database");
+            }
+                
+            await LoadDbUserInfo();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error updating profile: {ex.Message}");
+            Console.WriteLine($"Error updating profile in Razor component: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
             updateError = true;
         }
         finally
@@ -369,6 +388,10 @@
         [Required(ErrorMessage = "City is required")]
         [StringLength(15, ErrorMessage = "City cannot exceed 15 characters")]
         public string City { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Country is required")]
+        [StringLength(15, ErrorMessage = "Country cannot exceed 15 characters")]
+        public string Country { get; set; } = string.Empty;
 
         [StringLength(30, ErrorMessage = "Password cannot exceed 30 characters")]
         public string Password { get; set; } = string.Empty;

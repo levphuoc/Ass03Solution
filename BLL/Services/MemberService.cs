@@ -97,20 +97,9 @@ namespace BLL.Services
             try
             {
                 // Check basic email format
-                if (!Regex.IsMatch(email,
+                return Regex.IsMatch(email,
                     @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
-                    RegexOptions.IgnoreCase))
-                {
-                    return false;
-                }
-
-                // Check if it's a Gmail address
-                var emailParts = email.Split('@');
-                if (emailParts.Length != 2)
-                    return false;
-
-                var domain = emailParts[1].ToLower();
-                return domain == "gmail.com";
+                    RegexOptions.IgnoreCase);
             }
             catch
             {
@@ -127,7 +116,7 @@ namespace BLL.Services
             }
         }
 
-        public async Task<bool> UpdateProfileAsync(int memberId, string companyName, string city, string email, string password)
+        public async Task<bool> UpdateProfileAsync(int memberId, string companyName, string city, string country, string email, string password)
         {
             try
             {
@@ -135,24 +124,35 @@ namespace BLL.Services
                 var member = await _memberRepository.GetByIdAsync(memberId);
                 if (member == null)
                 {
+                    Console.WriteLine($"Member with ID {memberId} not found");
                     return false;
                 }
 
                 // Validate email format
                 if (!IsValidEmail(email))
                 {
-                    throw new ArgumentException("Invalid email format. Please provide a valid Gmail address.");
+                    Console.WriteLine($"Invalid email format: {email}");
+                    throw new ArgumentException("Invalid email format.");
                 }
 
                 // Only check email uniqueness if the email is being changed
                 if (!string.Equals(member.Email, email, StringComparison.OrdinalIgnoreCase))
                 {
-                    await CheckEmailUniqueness(email);
+                    try
+                    {
+                        await CheckEmailUniqueness(email);
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                        throw; // Rethrow to be caught by outer catch
+                    }
                 }
 
                 // Update the fields
                 member.CompanyName = companyName;
                 member.City = city;
+                member.Country = country;
                 member.Email = email;
 
                 // Validate password length if provided
@@ -160,6 +160,7 @@ namespace BLL.Services
                 {
                     if (password.Length < 6)
                     {
+                        Console.WriteLine("Password too short");
                         throw new ArgumentException("Password must be at least 6 characters long.");
                     }
                     member.Password = password;
@@ -170,11 +171,13 @@ namespace BLL.Services
 
                 // Notify clients if needed
                 await _hubContext.Clients.All.SendAsync("ReceiveUpdate");
-
+                Console.WriteLine($"Profile updated successfully for member {memberId}, new email: {email}");
                 return true;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Console.WriteLine($"Error updating profile: {ex.GetType().Name}: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 return false;
             }
         }
