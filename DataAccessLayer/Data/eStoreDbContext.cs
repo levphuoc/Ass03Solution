@@ -22,16 +22,13 @@ namespace DataAccessLayer.Data
         public DbSet<CartItem> CartItems { get; set; }
         public DbSet<Categories> Categories { get; set; }
         public DbSet<TracingOrder> TracingOrders { get; set; }
-        public DbSet<CartDetail> CartDetails { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-
-            modelBuilder.Entity<CartDetail>().HasNoKey();
         
-        // Cấu hình độ chính xác cho kiểu decimal
-        modelBuilder.Entity<Order>()
+            // Cấu hình độ chính xác cho kiểu decimal
+            modelBuilder.Entity<Order>()
                 .Property(o => o.Freight)
                 .HasPrecision(18, 2);
 
@@ -71,12 +68,29 @@ namespace DataAccessLayer.Data
                 .WithMany(c => c.Products)
                 .HasForeignKey(p => p.CategoryId);
 
+            // Cấu hình CartItem
             modelBuilder.Entity<CartItem>()
                 .HasKey(ci => new { ci.CartId, ci.ProductId });
 
+            // Thiết lập quan hệ giữa CartItem và Product
+            modelBuilder.Entity<CartItem>()
+                .HasOne(ci => ci.Product)
+                .WithMany()
+                .HasForeignKey(ci => ci.ProductId);
+                
+            // Thiết lập quan hệ giữa CartItem và Cart
+            modelBuilder.Entity<CartItem>()
+                .HasOne(ci => ci.Cart)
+                .WithMany(c => c.CartItems)
+                .HasForeignKey(ci => ci.CartId);
+
+            modelBuilder.Entity<CartItem>()
+                .Property(ci => ci.UnitPrice)
+                .HasPrecision(18, 2);
+                
             modelBuilder.Entity<CartItem>()
                 .Property(ci => ci.TotalPrice)
-                .HasColumnType("decimal(18, 2)");
+                .HasPrecision(18, 2);
         }
     }
 }

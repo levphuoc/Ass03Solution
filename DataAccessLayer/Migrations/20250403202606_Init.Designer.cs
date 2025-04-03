@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DataAccessLayer.Migrations
 {
     [DbContext(typeof(EStoreDbContext))]
-    [Migration("20250403163659_Init")]
+    [Migration("20250403202606_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -49,27 +49,6 @@ namespace DataAccessLayer.Migrations
                     b.ToTable("Carts");
                 });
 
-            modelBuilder.Entity("DataAccessLayer.Entities.CartDetail", b =>
-                {
-                    b.Property<int>("CartId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ProductId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Quantity")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("TotalPrice")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasIndex("CartId");
-
-                    b.HasIndex("ProductId");
-
-                    b.ToTable("CartDetails");
-                });
-
             modelBuilder.Entity("DataAccessLayer.Entities.CartItem", b =>
                 {
                     b.Property<int>("CartId")
@@ -88,9 +67,11 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("TotalPrice")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18, 2)");
 
                     b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18, 2)");
 
                     b.Property<DateTime?>("UpdatedAt")
@@ -312,25 +293,6 @@ namespace DataAccessLayer.Migrations
                         .IsRequired();
 
                     b.Navigation("Member");
-                });
-
-            modelBuilder.Entity("DataAccessLayer.Entities.CartDetail", b =>
-                {
-                    b.HasOne("DataAccessLayer.Entities.Cart", "Cart")
-                        .WithMany()
-                        .HasForeignKey("CartId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("DataAccessLayer.Entities.Product", "Product")
-                        .WithMany()
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Cart");
-
-                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("DataAccessLayer.Entities.CartItem", b =>

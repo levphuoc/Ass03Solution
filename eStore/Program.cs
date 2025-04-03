@@ -3,6 +3,7 @@ using BLL.Services;
 using DataAccessLayer.Data;
 using DataAccessLayer.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using BLL.Hubs;
 
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -44,12 +45,31 @@ builder.Services.AddApplicationServices();
 
 // Đăng ký DbContext với Scoped thay vì Transient
 builder.Services.AddDbContext<EStoreDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
-           .EnableSensitiveDataLogging(builder.Environment.IsDevelopment())
-           .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
-);
-
-
+{
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"), 
+        sqlOptions => 
+        {
+            sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null);
+            sqlOptions.CommandTimeout(60);
+            sqlOptions.UseRelationalNulls(false);
+        });
+    
+    // Enable detailed error messages and sensitive data logging in development
+    if (builder.Environment.IsDevelopment())
+    {
+        options.EnableDetailedErrors();
+        options.EnableSensitiveDataLogging();
+    }
+    
+    // Set global query behavior to split queries by default
+    options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+    options.ConfigureWarnings(warnings => 
+        warnings.Throw(RelationalEventId.MultipleCollectionIncludeWarning));
+});
 
 
 // Auth providers
@@ -97,8 +117,8 @@ builder.Services.AddAuthorization(options =>
     // Add policies for each role
     options.AddPolicy("RequireAdmin", policy => policy.RequireRole("Admin"));
     options.AddPolicy("RequireStaff", policy => policy.RequireRole("Admin", "Staff"));
-    options.AddPolicy("RequireMember", policy => policy.RequireRole("Admin", "Staff", "Member"));
-    options.AddPolicy("RequireUser", policy => policy.RequireRole("Admin", "Staff", "Member", "User"));
+    options.AddPolicy("RequireMember", policy => policy.RequireRole("Admin", "Staff", "Deliverer"));
+    options.AddPolicy("RequireUser", policy => policy.RequireRole("Admin", "Staff", "Deliverer", "User"));
 });
 
 // SignalR

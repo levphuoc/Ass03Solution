@@ -41,6 +41,15 @@
     }
     else
     {
+        @if (!string.IsNullOrEmpty(cart.ErrorMessage))
+        {
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                @cart.ErrorMessage
+                <button type="button" class="btn-close" @onclick="ClearErrorMessage"></button>
+            </div>
+        }
+        
         <div class="card mb-4">
             <div class="card-header bg-primary text-white">
                 <h3 class="mb-0">Items in Your Cart</h3>
@@ -125,6 +134,8 @@
             </div>
         </div>
     }
+
+   
 </div>
 
 @code {
@@ -146,7 +157,7 @@
         {
             if (currentUser != null)
             {
-                cart = await CartService.GetCartAsync(currentUser.MemberId, currentUser.Role);
+                cart = await CartService.GetCartAsync(currentUser.MemberId);
             }
         }
         catch (Exception ex)
@@ -171,8 +182,7 @@
             cart = await CartService.UpdateCartItemAsync(
                 currentUser.MemberId, 
                 productId, 
-                quantity, 
-                currentUser.Role);
+                quantity);
         }
         catch (Exception ex)
         {
@@ -213,8 +223,7 @@
             {
                 cart = await CartService.RemoveFromCartAsync(
                     currentUser.MemberId, 
-                    productId, 
-                    currentUser.Role);
+                    productId);
             }
         }
         catch (Exception ex)
@@ -232,7 +241,7 @@
         {
             if (await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to clear your cart?"))
             {
-                await CartService.ClearCartAsync(currentUser.MemberId, currentUser.Role);
+                await CartService.ClearCartAsync(currentUser.MemberId);
                 cart = new CartDTO();
             }
         }
@@ -243,10 +252,28 @@
         }
     }
 
-    private void Checkout()
+    private async Task Checkout()
     {
-        // Redirect to checkout page (can be implemented later)
-        NavigationManager.NavigateTo("/orders/create");
+        if (currentUser == null || cart == null || !cart.Items.Any()) return;
+        
+        try 
+        {
+            // Confirm with the user before proceeding to checkout
+            bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", 
+                "Proceeding to checkout will create an order with the items in your cart.\n\n" +
+                "After successful checkout, your cart will be cleared.\n\n" +
+                "Do you want to continue?");
+                
+            if (confirmed)
+            {
+                // Redirect to checkout page
+                NavigationManager.NavigateTo("/orders/create");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error during checkout: {ex.Message}");
+        }
     }
 
     private string GetProxyImageUrl(string originalUrl)
@@ -260,5 +287,13 @@
         }
         
         return originalUrl;
+    }
+
+    private void ClearErrorMessage()
+    {
+        if (cart != null)
+        {
+            cart.ErrorMessage = null;
+        }
     }
 } 

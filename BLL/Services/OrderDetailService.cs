@@ -2,6 +2,7 @@
 using BLL.Services.IServices;
 using DataAccessLayer.Entities;
 using DataAccessLayer.UnitOfWork;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -10,14 +11,19 @@ namespace BLL.Services
     public class OrderDetailService : IOrderDetailService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IProductService _productService;
 
-        public OrderDetailService(IUnitOfWork unitOfWork)
+        public OrderDetailService(IUnitOfWork unitOfWork, IProductService productService)
         {
             _unitOfWork = unitOfWork;
+            _productService = productService;
         }
 
         public async Task AddOrderDetailsAsync(IEnumerable<OrderItemDTO> orderDetails)
         {
+            // First, create a dictionary of product quantities to decrease stock
+            var productQuantities = new Dictionary<int, int>();
+            
             foreach (var detail in orderDetails)
             {
                 var orderDetail = new OrderDetail
@@ -29,10 +35,35 @@ namespace BLL.Services
                     Discount = detail.Discount
                 };
 
-                await _unitOfWork.OrderDetails.AddAsync(orderDetail); 
+                await _unitOfWork.OrderDetails.AddAsync(orderDetail);
+                
+                // Add to the dictionary for stock update
+                if (!productQuantities.ContainsKey(detail.ProductId))
+                {
+                    productQuantities[detail.ProductId] = detail.Quantity;
+                }
+                else
+                {
+                    productQuantities[detail.ProductId] += detail.Quantity;
+                }
             }
 
+            // Save the order details first
             await _unitOfWork.SaveChangesAsync();
+            
+            // Now update the product stock for all products in one operation
+            if (productQuantities.Any())
+            {
+                bool stockUpdateResult = await _productService.DecreaseStockForMultipleProductsAsync(productQuantities);
+                if (!stockUpdateResult)
+                {
+                    Console.WriteLine("Failed to update product stock for one or more products");
+                }
+                else
+                {
+                    Console.WriteLine($"Successfully decreased stock for {productQuantities.Count} products");
+                }
+            }
         }
         public async Task<List<OrderItemDTO>> GetOrderItemsByOrderIdAsync(int orderId)
         {

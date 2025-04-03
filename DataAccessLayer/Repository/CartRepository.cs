@@ -18,56 +18,74 @@ namespace DataAccessLayer.Repository
 
         public async Task<List<CartItem>> GetCartItemsByCartIdAsync(int userId)
         {
-
-            var cart = await _context.Carts.FirstOrDefaultAsync(n => n.MemberId == userId);
-            if (cart == null)
+            try 
             {
-               
-                return new List<CartItem>(); 
+                // Execute everything in a single query to avoid context disposal issues
+                return await _context.Carts
+                    .Where(c => c.MemberId == userId)
+                    .SelectMany(c => _context.CartItems
+                        .Where(ci => ci.CartId == c.CartId)
+                        .Include(ci => ci.Product))
+                    .ToListAsync();
             }
-
-            var cartDetails = await _context.CartItems
-                                            .Where(ci => ci.CartId == cart.CartId)
-                                            .Include(ci => ci.Product)
-                                            .ToListAsync();
-
-            if (cartDetails == null || !cartDetails.Any()) 
+            catch (Exception ex)
             {
-               
+                // Log the exception
+                Console.WriteLine($"Error in GetCartItemsByCartIdAsync: {ex.Message}");
                 return new List<CartItem>();
             }
-
-            return cartDetails; 
         }
        
         public async Task DeleteCartAndItemsByMemberIdAsync(int memberId)
         {
-            
-            var cart = await _context.Carts.FirstOrDefaultAsync(c => c.MemberId == memberId);
-
-            if (cart == null)
+            try
             {
+                // Use a transaction to ensure atomic deletion
+                using var transaction = await _context.Database.BeginTransactionAsync();
                 
-                return;
-            }
-
-            int cartId = cart.CartId;
-         
-
-           
-            var cartItems = await _context.CartDetails.Where(ci => ci.CartId == cartId).ToListAsync();
-
-            if (cartItems.Any())
-            {
-               
-                foreach (var cartItem in cartItems)
+                try
                 {
-                    _context.CartDetails.Remove(cartItem);  
+                    // Find the cart
+                    var cart = await _context.Carts
+                        .FirstOrDefaultAsync(c => c.MemberId == memberId);
+
+                    if (cart == null)
+                    {
+                        Console.WriteLine($"No cart found for member {memberId} to delete");
+                        await transaction.CommitAsync();
+                        return;
+                    }
+
+                    int cartId = cart.CartId;
+                    Console.WriteLine($"Deleting cart {cartId} for member {memberId}");
+
+                    // Use direct SQL to delete cart items first
+                    string deleteCartItemsSQL = $"DELETE FROM CartItems WHERE CartId = {cartId}";
+                    await _context.Database.ExecuteSqlRawAsync(deleteCartItemsSQL);
+                    Console.WriteLine($"SQL executed: {deleteCartItemsSQL}");
+                    
+                    // Use direct SQL to delete the cart
+                    string deleteCartSQL = $"DELETE FROM Carts WHERE CartId = {cartId}";
+                    await _context.Database.ExecuteSqlRawAsync(deleteCartSQL);
+                    Console.WriteLine($"SQL executed: {deleteCartSQL}");
+                    
+                    // Commit the transaction
+                    await transaction.CommitAsync();
+                    Console.WriteLine($"Successfully deleted cart {cartId} and its items for member {memberId}");
+                }
+                catch (Exception ex)
+                {
+                    // Rollback on error
+                    await transaction.RollbackAsync();
+                    Console.WriteLine($"Error in transaction during cart deletion: {ex.Message}");
+                    throw; // Rethrow to be handled by caller
                 }
             }
-            _context.Carts.Remove(cart);
-            await _context.SaveChangesAsync();
-
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error deleting cart for member {memberId}: {ex.Message}");
+                throw; // Rethrow to be handled by caller
+            }
         }
 
 

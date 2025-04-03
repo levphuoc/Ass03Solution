@@ -25,7 +25,7 @@
 @if (IsSuccess)
 {
     <div class="alert alert-success mt-4 text-center">
-        Order Created Successfully!
+        <i class="fas fa-check-circle me-2"></i> Order Created Successfully! Product inventory has been updated.
     </div>
 }
 <div class="card shadow-sm p-4 mb-4">
@@ -68,7 +68,7 @@
 
                 <label class="form-label fw-bold">Required Date</label>
 
-                <InputDate @bind-Value="OrderModel.RequiredDate" class="form-control" min="@OrderModel.OrderDate.ToString("yyyy-MM-dd")" />
+                <InputDate @bind-Value="OrderModel.RequiredDate" class="form-control" min="@OrderModel.OrderDate.ToString("yyyy-MM-dd")" @onchange="OnRequiredDateChanged" />
 
             </div>
 
@@ -76,7 +76,7 @@
 
                 <label class="form-label fw-bold">Shipped Date</label>
 
-                <InputDate @bind-Value="OrderModel.ShippedDate" class="form-control" min="@OrderModel.OrderDate.ToString("yyyy-MM-dd")" />
+                <InputDate @bind-Value="OrderModel.ShippedDate" class="form-control" min="@OrderModel.RequiredDate.ToString("yyyy-MM-dd")" />
 
             </div>
         </div>
@@ -150,7 +150,7 @@
 
     private OrderDTO OrderModel { get; set; } = new OrderDTO
     {
-        MemberId = 1,
+        MemberId = 0,
         OrderDate = DateTime.Today,
         RequiredDate = DateTime.Today.AddDays(7),
         ShippedDate = DateTime.Today.AddDays(3),
@@ -173,7 +173,12 @@
     private double total = 0;
     protected override async Task OnInitializedAsync()
     {
-
+        // Get the current user ID from claims
+        var idString = HttpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!string.IsNullOrEmpty(idString) && int.TryParse(idString, out int userId))
+        {
+            OrderModel.MemberId = userId;
+        }
 
         hubConnection = new HubConnectionBuilder()
          .WithUrl(NavigationManager.ToAbsoluteUri("/orderHub"))
@@ -193,9 +198,6 @@
     }
     private async void AddOrderItem()
     {
-
-    @inject IHttpContextAccessor HttpContextAccessor
-
         // Lấy email user hiện tại
         var idString = HttpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
@@ -206,11 +208,8 @@
             return;
         }
 
-        
-        bool isAdmin = HttpContextAccessor.HttpContext?.User?.IsInRole("Admin") ?? false;
-
-        
-        var cartItems = await CartService.GetAllCartDetailById(userId);
+        // Lấy thông tin giỏ hàng
+        var cartItems = await CartService.GetCartItemsAsync(userId);
 
         if (cartItems != null && cartItems.Any())
         {
@@ -231,9 +230,8 @@
         }
         else
         {
-            ErrorMessage = "Không có item nào";
+            ErrorMessage = "Không có item nào trong giỏ hàng.";
         }
-
     }
 
     private void OnProductChanged(ChangeEventArgs e, OrderItemDTO item)
@@ -249,6 +247,16 @@
                 item.UnitPrice = selectedProduct.UnitPrice;
             }
         }
+    }
+
+    private void OnRequiredDateChanged(ChangeEventArgs e)
+    {
+        // When Required Date changes, ensure Shipped Date is not earlier
+        if (OrderModel.ShippedDate < OrderModel.RequiredDate)
+        {
+            OrderModel.ShippedDate = OrderModel.RequiredDate;
+        }
+        StateHasChanged();
     }
 
     private async Task CreateOrder()
@@ -268,6 +276,15 @@
             IsLoading = false;
             return;
         }
+
+        // Validate that Shipped Date is greater than or equal to Required Date
+        if (OrderModel.ShippedDate < OrderModel.RequiredDate)
+        {
+            ErrorMessage = "Shipped Date must be greater than or equal to Required Date.";
+            IsLoading = false;
+            return;
+        }
+
         foreach (var item in OrderItems)
         {
             var isAvailable = await ProductService.CheckStockAvailabilityAsync(item.ProductId, item.Quantity);
@@ -302,7 +319,35 @@
                     Discount = item.Discount
 
                 }).ToList();
+            
+            // Add order details and decrease product stock
             await OrderDetailService.AddOrderDetailsAsync(orderDetails);
+            Console.WriteLine($"Order details added and product stock decreased for order {createdOrderId}");
+            
+            // Xóa giỏ hàng sau khi tạo đơn hàng thành công
+            var idString = HttpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(idString, out int userId)) 
+            {
+                try
+                {
+                    // Call the ultimate cart cleanup function that makes multiple deletion attempts
+                    await JSRuntime.InvokeVoidAsync("ultimateCartCleanup", userId);
+                    Console.WriteLine($"Ultimate cart cleanup initiated for user {userId}");
+                    
+                    // Standard service approach as backup
+                    await CartService.DeleteCartAfterOrderCreateAsync(userId);
+                    Console.WriteLine($"Standard cart deletion also initiated for user {userId}");
+                    
+                    // Delay to let cleanup happen before redirecting
+                    await Task.Delay(1000);
+                }
+                catch (Exception ex)
+                {
+                    // Log but don't fail the order creation
+                    Console.WriteLine($"Error during cart deletion after order: {ex.Message}");
+                }
+            }
+            
             IsSuccess = true;
             await hubConnection.InvokeAsync("NotifyOrderCreation", createdOrderId);
             await InvokeAsync(() => NavigationManager.NavigateTo("/orders"));

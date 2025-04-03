@@ -112,36 +112,46 @@ else
 
                         <EditForm Model="selectedMember" OnValidSubmit="SaveMember">
                             <DataAnnotationsValidator />
+                            <ValidationSummary class="text-danger mb-3" />
+                            
                             <div class="mb-3">
                                 <label>Email:</label>
                                 <InputText @bind-Value="selectedMember.Email" class="form-control" />
+                                <ValidationMessage For="@(() => selectedMember.Email)" class="text-danger" />
                             </div>
                             <div class="mb-3">
                                 <label>Company:</label>
                                 <InputText @bind-Value="selectedMember.CompanyName" class="form-control" />
+                                <ValidationMessage For="@(() => selectedMember.CompanyName)" class="text-danger" />
                             </div>
                             <div class="mb-3">
                                 <label>City:</label>
                                 <InputText @bind-Value="selectedMember.City" class="form-control" />
+                                <ValidationMessage For="@(() => selectedMember.City)" class="text-danger" />
                             </div>
                             <div class="mb-3">
                                 <label>Country:</label>
                                 <InputText @bind-Value="selectedMember.Country" class="form-control" />
+                                <ValidationMessage For="@(() => selectedMember.Country)" class="text-danger" />
                             </div>
                             <div class="mb-3">
                                 <label>Password:</label>
                                 <InputText @bind-Value="selectedMember.Password" class="form-control" type="password" />
+                                <ValidationMessage For="@(() => selectedMember.Password)" class="text-danger" />
                             </div>
                             @if (AuthService.IsInRole("Admin"))
                             {
                                 <div class="mb-3">
                                     <label>Role:</label>
                                     <InputSelect @bind-Value="selectedMember.Role" class="form-control">
+                                        <option value="">Select a role</option>
+                                        <option value="Deliverer">Deliverer</option>
                                         <option value="User">User</option>
-                                        <option value="Member">Member</option>
-                                        <option value="Staff">Staff</option>
                                         <option value="Admin">Admin</option>
+                                        <option value="Staff">Staff</option>
+                                        <option value="Shipper">Shipper</option>
                                     </InputSelect>
+                                    <ValidationMessage For="@(() => selectedMember.Role)" class="text-danger" />
                                 </div>
                             }
                             <div class="modal-footer">
@@ -296,6 +306,44 @@ else
         try
         {
             errorMessage = null; // Reset lỗi trước khi thực hiện
+            
+            // Additional validation for required fields
+            if (string.IsNullOrWhiteSpace(selectedMember.Email))
+            {
+                errorMessage = "Email is required.";
+                return;
+            }
+            
+            if (string.IsNullOrWhiteSpace(selectedMember.CompanyName))
+            {
+                errorMessage = "Company name is required.";
+                return;
+            }
+            
+            if (string.IsNullOrWhiteSpace(selectedMember.City))
+            {
+                errorMessage = "City is required.";
+                return;
+            }
+            
+            if (string.IsNullOrWhiteSpace(selectedMember.Country))
+            {
+                errorMessage = "Country is required.";
+                return;
+            }
+            
+            if (string.IsNullOrWhiteSpace(selectedMember.Password))
+            {
+                errorMessage = "Password is required.";
+                return;
+            }
+            
+            if (string.IsNullOrWhiteSpace(selectedMember.Role))
+            {
+                errorMessage = "Role is required.";
+                return;
+            }
+            
             if (selectedMember.MemberId == 0)
             {
                 await MemberService.AddMemberAsync(selectedMember);

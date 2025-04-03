@@ -23,10 +23,8 @@ namespace eStore
             services.AddScoped<ICategoryRepository, CategoryRepository>();
             services.AddScoped<ICategoryService, CategoryService>();
             services.AddScoped<ICartService, CartService>();
-            services.AddScoped<ICartDetailRepository, CartDetailRepository>();
             services.AddScoped<ITrackingOrderService, TracingOrderService>();
             services.AddScoped<ICartRepository, CartRepository>();
-            services.AddScoped<ICartService, CartService>();
             
             // Register AutoMapper manually
             var mapperConfig = new MapperConfiguration(cfg =>

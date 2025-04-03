@@ -12,10 +12,6 @@ window.registerNavMenu = (dotnetRef) => {
 
 // Force a complete page reload after logout
 function forceLogout() {
-    // Clear any local storage or session data
-    localStorage.clear();
-    sessionStorage.clear();
-    
     // Force a hard navigation to the logout URL
     window.location.replace("/api/auth/logout");
     
@@ -48,14 +44,6 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('pageshow', (event) => {
     // Also refresh when navigating back (bfcache)
     if (event.persisted) {
-        window.refreshAuthState();
-    }
-});
-
-// Listen for storage events (for logout in other tabs)
-window.addEventListener('storage', (event) => {
-    if (event.key === null) {
-        // localStorage was cleared
         window.refreshAuthState();
     }
 }); 

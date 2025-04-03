@@ -57,12 +57,12 @@
                 <div class="row g-3 mb-3">
                     <div class="col-md-6">
                         <label class="form-label fw-bold">Required Date</label>
-                        <InputDate @bind-Value="OrderModel.RequiredDate" class="form-control" min="@OrderModel.OrderDate.ToString("yyyy-MM-dd")" readonly />
+                        <InputDate @bind-Value="OrderModel.RequiredDate" class="form-control" min="@OrderModel.OrderDate.ToString("yyyy-MM-dd")" @onchange="OnRequiredDateChanged" />
                     </div>
 
                     <div class="col-md-6">
                         <label class="form-label fw-bold">Shipped Date</label>
-                        <InputDate @bind-Value="OrderModel.ShippedDate" class="form-control" min="@OrderModel.OrderDate.ToString("yyyy-MM-dd")" />
+                        <InputDate @bind-Value="OrderModel.ShippedDate" class="form-control" min="@OrderModel.RequiredDate.ToString("yyyy-MM-dd")" />
                     </div>
                 </div>
 
@@ -92,7 +92,7 @@
     protected override async Task OnParametersSetAsync()
     {
         
-            IsLoading = true;
+        IsLoading = true;
         hubConnection = new HubConnectionBuilder()
     .WithUrl(NavigationManager.ToAbsoluteUri("/orderHub"))
     .WithAutomaticReconnect()
@@ -106,43 +106,81 @@
         });
 
         await hubConnection.StartAsync();
-            OrderModel = await OrderService.GetOrderByIdAsync(orderid);
+        var order = await OrderService.GetOrderByIdAsync(orderid);
 
-            if (OrderModel == null)
-            {
-                ErrorMessage = "Order not found.";
-            }
-            else
-            {
-                IsSuccess = false;
-                IsLoading = false;
-            }
+        if (order == null)
+        {
+            ErrorMessage = "Order not found.";
+            IsLoading = false;
+            return;
+        }
+
+        // Check if order is not in Spending (pending) status
+        var orderEntity = await OrderService.GetOrderEntityByIdAsync(orderid);
+        if (orderEntity?.Status != DataAccessLayer.Enum.OrderStatus.Spending)
+        {
+            ErrorMessage = "This order cannot be edited. Only orders in 'Pending' status can be modified.";
+            IsLoading = false;
+            return;
+        }
+
+        OrderModel = order;
+        IsSuccess = false;
+        IsLoading = false;
     }
    
 
     private async Task UpdateOrder()
     {
+        IsLoading = true;
+        ErrorMessage = null;
 
-            IsLoading = true;
-
+        // Double-check order status before updating
+        var orderEntity = await OrderService.GetOrderEntityByIdAsync(orderid);
+        if (orderEntity?.Status != DataAccessLayer.Enum.OrderStatus.Spending)
+        {
+            ErrorMessage = "This order cannot be edited. Only orders in 'Pending' status can be modified.";
+            IsLoading = false;
+            return;
+        }
             
-            if (OrderModel.Freight < 0)
-            {
-                ErrorMessage = "Freight cannot be negative.";
-                return;
-            }
-            await OrderService.UpdateOrderAsync(OrderModel);
-            IsSuccess = true;
+        if (OrderModel.Freight < 0)
+        {
+            ErrorMessage = "Freight cannot be negative.";
+            IsLoading = false;
+            return;
+        }
+
+        // Validate that Shipped Date is greater than or equal to Required Date
+        if (OrderModel.ShippedDate < OrderModel.RequiredDate)
+        {
+            ErrorMessage = "Shipped Date must be greater than or equal to Required Date.";
+            IsLoading = false;
+            return;
+        }
+
+        await OrderService.UpdateOrderAsync(OrderModel);
+        IsSuccess = true;
         await hubConnection.InvokeAsync("NotifyOrderUpdate", orderid);
 
         // Đợi 500ms để đảm bảo SignalR được kích hoạt trước khi tải lại dữ liệu
-            await Task.Delay(500);
+        await Task.Delay(500);
 
         // Load lại dữ liệu mới nhất sau khi cập nhật
-            OrderModel = await OrderService.GetOrderByIdAsync(orderid);
+        OrderModel = await OrderService.GetOrderByIdAsync(orderid);
 
-            await InvokeAsync(() => StateHasChanged());
-            await InvokeAsync(() => NavigationManager.NavigateTo("/orders"));
+        await InvokeAsync(() => StateHasChanged());
+        await InvokeAsync(() => NavigationManager.NavigateTo("/orders"));
+    }
+
+    private void OnRequiredDateChanged(ChangeEventArgs e)
+    {
+        // When Required Date changes, ensure Shipped Date is not earlier
+        if (OrderModel.ShippedDate < OrderModel.RequiredDate)
+        {
+            OrderModel.ShippedDate = OrderModel.RequiredDate;
+        }
+        StateHasChanged();
     }
 
 }

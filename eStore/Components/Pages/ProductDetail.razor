@@ -57,13 +57,27 @@
                         </div>
                         <h3 class="text-danger mb-3">@($"{product.UnitPrice:C}")</h3>
                         <p><strong>Weight:</strong> @product.Weight</p>
-                        <p><strong>Stock:</strong> @product.UnitsInStock units available</p>
                         
-                        <div class="d-grid gap-2 col-6 mx-auto mt-4">
-                            <button class="btn btn-success btn-lg" @onclick="() => AddToCart(product)">
-                                <i class="bi bi-cart-plus"></i> Add to Cart
-                            </button>
-                        </div>
+                        @if (product.UnitsInStock > 0)
+                        {
+                            <p class="text-success"><strong>In Stock:</strong> @product.UnitsInStock units available</p>
+                            
+                            <div class="d-grid gap-2 col-6 mx-auto mt-4">
+                                <button class="btn btn-success btn-lg" @onclick="() => AddToCart(product)">
+                                    <i class="bi bi-cart-plus"></i> Add to Cart
+                                </button>
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="text-danger"><strong>Out of Stock</strong></p>
+                            
+                            <div class="d-grid gap-2 col-6 mx-auto mt-4">
+                                <button class="btn btn-secondary btn-lg" disabled>
+                                    <i class="bi bi-x-circle"></i> Out of Stock
+                                </button>
+                            </div>
+                        }
                     </div>
                 </div>
             </div>
@@ -96,6 +110,14 @@
                                     <div class="card-body">
                                         <h5 class="card-title">@relatedProduct.ProductName</h5>
                                         <p class="card-text text-danger">@($"{relatedProduct.UnitPrice:C}")</p>
+                                        @if (relatedProduct.UnitsInStock > 0)
+                                        {
+                                            <p class="card-text text-success"><small>In Stock</small></p>
+                                        }
+                                        else
+                                        {
+                                            <p class="card-text text-danger"><small>Out of Stock</small></p>
+                                        }
                                     </div>
                                     <div class="card-footer">
                                         <a href="/product/@relatedProduct.ProductId" class="btn btn-outline-primary btn-sm w-100">View Details</a>
@@ -172,12 +194,25 @@
         
         try
         {
+            // Check if product is in stock before adding
+            if (product.UnitsInStock <= 0)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Sorry, this product is out of stock.");
+                return;
+            }
+            
             // Thêm sản phẩm vào giỏ hàng với số lượng là 1
             var cart = await CartService.AddToCartAsync(
                 currentUser.MemberId, 
                 product.ProductId, 
-                1, 
-                currentUser.Role);
+                1);
+                
+            if (!string.IsNullOrEmpty(cart.ErrorMessage))
+            {
+                // Display error message from cart service
+                await JSRuntime.InvokeVoidAsync("alert", cart.ErrorMessage);
+                return;
+            }
             
             // Hiển thị thông báo đã thêm vào giỏ hàng
             await JSRuntime.InvokeVoidAsync("alert", $"{product.ProductName} has been added to your cart!");
