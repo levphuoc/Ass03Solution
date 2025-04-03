@@ -284,28 +284,67 @@ namespace BLL.Services
 
         public async Task<List<Order>> GetPagedOrdersShipperAsync(int pageNumber, int pageSize, string status)
         {
+            Console.WriteLine($"GetPagedOrdersShipperAsync called with status: {status}");
             
             var validStatuses = new List<OrderStatus>
-    {
-        OrderStatus.Approve,
-        OrderStatus.Shipping,
-        OrderStatus.Shipped
-    };
+            {
+                OrderStatus.Approve,
+                OrderStatus.Shipping,
+                OrderStatus.Shipped
+            };
 
+            // Trước tiên lấy tất cả đơn hàng để kiểm tra
+            var allOrders = await _unitOfWork.Orders.GetAllAsync();
+            Console.WriteLine($"Total orders in database: {allOrders.Count()}");
             
+            // In trạng thái của tất cả đơn hàng để debug
+            foreach (var order in allOrders)
+            {
+                Console.WriteLine($"DB Order {order.OrderId}: Status = {order.Status} ({(int)order.Status})");
+            }
+
             Expression<Func<Order, bool>> predicate;
 
             if (status == "ALL")
             {
-                predicate = o => validStatuses.Contains(o.Status);
+                // Lọc để lấy các đơn hàng có trạng thái Approve, Shipping, hoặc Shipped
+                predicate = o => o.Status == OrderStatus.Approve || 
+                                o.Status == OrderStatus.Shipping || 
+                                o.Status == OrderStatus.Shipped;
+                Console.WriteLine("Using ALL status filter for Shipper: Approve, Shipping, Shipped");
+            }
+            else if (int.TryParse(status, out int statusId))
+            {
+                // Nếu status là số, chuyển đổi thành OrderStatus và kiểm tra
+                if (Enum.IsDefined(typeof(OrderStatus), statusId))
+                {
+                    OrderStatus parsedStatus = (OrderStatus)statusId;
+                    
+                    if (validStatuses.Contains(parsedStatus))
+                    {
+                        predicate = o => o.Status == parsedStatus;
+                        Console.WriteLine($"Filtering by status ID: {statusId} ({parsedStatus})");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Status ID {statusId} not in valid statuses");
+                        return new List<Order>();
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"Invalid status ID: {statusId}");
+                    return new List<Order>();
+                }
             }
             else if (Enum.TryParse<OrderStatus>(status, true, out var parsedStatus) && validStatuses.Contains(parsedStatus))
             {
                 predicate = o => o.Status == parsedStatus;
+                Console.WriteLine($"Filtering by parsed status: {parsedStatus}");
             }
             else
             {
-                
+                Console.WriteLine($"Could not parse status: {status}");
                 return new List<Order>();
             }
 
@@ -315,6 +354,12 @@ namespace BLL.Services
                 predicate,
                 query => query.OrderByDescending(o => o.OrderDate)
             );
+            
+            Console.WriteLine($"Found {orders.Count()} orders for Shipper view");
+            foreach (var order in orders)
+            {
+                Console.WriteLine($"Result Order {order.OrderId}: Status = {order.Status} ({(int)order.Status})");
+            }
 
             return orders.ToList();
         }
