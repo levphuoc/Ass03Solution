@@ -30,8 +30,21 @@ namespace BLL.Services.FirebaseServices.Utilities
             public static string GetSalesChartPath(DateTime dateGenerated, string chartType)
             => $"SalesReport/{dateGenerated:MMMddyy}/{chartType}.png";  
         }
-  
 
+        public static async Task<string> UploadBase64ImageAsync(string base64Image, string fileName, string folder = "SalesReport")
+        {
+            var imageBytes = Convert.FromBase64String(base64Image);
+            using var stream = new MemoryStream(imageBytes);
+            return await UploadFileAsync(stream, fileName, folder);
+        }
+
+        public static async Task<string> UploadFileAsync(Stream fileStream, string fileName, string firebaseKeyPath, string folder = "SalesReport")
+        {
+            string firebasePath = $"{folder}/{DateTime.Now:MMMddyy}/{fileName}";
+
+            var firebaseService = FirebaseServiceUtils.CreateStorageService(firebaseKeyPath);
+            return await firebaseService.UploadFileAsync(fileStream, firebasePath);
+        }
         public static async Task<string> UploadSalesChartAsync(string firebaseKeyPath, Stream fileStream, DateTime dateGenerated, string chartType)
         {
             var service = CreateStorageService(firebaseKeyPath);

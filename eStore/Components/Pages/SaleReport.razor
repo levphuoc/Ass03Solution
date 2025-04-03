@@ -375,16 +375,19 @@ else if (HasGenerated)
     [JSInvokable]
     public async Task OnChartFilePicked(string base64Image, string fileName)
     {
-        var imageBytes = Convert.FromBase64String(base64Image);
-        using var stream = new MemoryStream(imageBytes);
+        try
+        {
+            var uploadedUrl = await FirebaseServiceUtils.UploadBase64ImageAsync(base64Image, fileName);
 
-        string firebaseKeyPath = ProgramUtils.GetKeyPath();
-        string firebasePath = $"SalesReport/{DateTime.Now:MMMddyy}/{fileName}";
-
-        var firebaseService = FirebaseServiceUtils.CreateStorageService(firebaseKeyPath);
-        var uploadedUrl = await firebaseService.UploadFileAsync(stream, firebasePath);
-
-        Console.WriteLine($"Uploaded: {uploadedUrl}");
+            Console.WriteLine($"Uploaded: {uploadedUrl}");
+            UploadStatusMessage = "Upload successful!";
+            UploadedFileUrl = uploadedUrl;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Upload failed: {ex.Message}");
+            ErrorMessage = "Upload failed.";
+        }
     }
 
 
@@ -426,25 +429,21 @@ else if (HasGenerated)
         try
         {
             using var stream = SelectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
-            string firebaseKeyPath = ProgramUtils.GetKeyPath();
-            string firebasePath = $"SalesReport/{DateTime.Now:MMMddyy}/{SelectedFile.Name}";
-
-            var firebaseService = FirebaseServiceUtils.CreateStorageService(firebaseKeyPath);
-            var uploadedUrl = await firebaseService.UploadFileAsync(stream, firebasePath);
+            var uploadedUrl = await FirebaseServiceUtils.UploadFileAsync(stream, SelectedFile.Name, ProgramUtils.GetKeyPath());
 
             UploadStatusMessage = "Upload successful!";
             UploadedFileUrl = uploadedUrl;
             ErrorMessage = null;
-            IsLoading = false;
         }
         catch (Exception ex)
         {
             ErrorMessage = $"Upload failed: {ex.Message}";
-            UploadStatusMessage = null;
+        }
+        finally
+        {
             IsLoading = false;
         }
     }
-
 
     #endregion
 }
