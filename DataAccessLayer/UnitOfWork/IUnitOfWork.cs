@@ -1,6 +1,7 @@
 ﻿using DataAccessLayer.Repository.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -18,5 +19,8 @@ namespace DataAccessLayer.UnitOfWork
         ICategoryRepository Categories { get; }
         
         Task<int> SaveChangesAsync();
+        
+        // Get direct database connection for emergency operations
+        DbConnection GetDbConnection();
     }
 }

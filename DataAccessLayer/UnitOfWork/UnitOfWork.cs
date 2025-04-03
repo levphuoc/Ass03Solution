@@ -6,6 +6,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using System.Data.Common;
+using System.Data;
 
 namespace DataAccessLayer.UnitOfWork
 {
@@ -37,6 +40,16 @@ namespace DataAccessLayer.UnitOfWork
         public async Task<int> SaveChangesAsync()
         {
             return await _context.SaveChangesAsync();
+        }
+        
+        public DbConnection GetDbConnection()
+        {
+            var connection = _context.Database.GetDbConnection();
+            if (connection.State != ConnectionState.Open)
+            {
+                connection.Open();
+            }
+            return connection;
         }
 
         protected virtual void Dispose(bool disposing)

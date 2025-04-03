@@ -325,9 +325,24 @@
             var idString = HttpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (int.TryParse(idString, out int userId)) 
             {
-                // Xóa giỏ hàng sử dụng phương thức mới
-                await CartService.DeleteCartAfterOrderCreateAsync(userId);
-                Console.WriteLine($"Cart cleared for user {userId} after order creation");
+                try
+                {
+                    // Call the ultimate cart cleanup function that makes multiple deletion attempts
+                    await JSRuntime.InvokeVoidAsync("ultimateCartCleanup", userId);
+                    Console.WriteLine($"Ultimate cart cleanup initiated for user {userId}");
+                    
+                    // Standard service approach as backup
+                    await CartService.DeleteCartAfterOrderCreateAsync(userId);
+                    Console.WriteLine($"Standard cart deletion also initiated for user {userId}");
+                    
+                    // Delay to let cleanup happen before redirecting
+                    await Task.Delay(1000);
+                }
+                catch (Exception ex)
+                {
+                    // Log but don't fail the order creation
+                    Console.WriteLine($"Error during cart deletion after order: {ex.Message}");
+                }
             }
             
             IsSuccess = true;
