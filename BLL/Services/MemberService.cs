@@ -162,5 +162,10 @@ namespace BLL.Services
                 return false;
             }
         }
+
+        public async Task<IEnumerable<Member>> SearchMembersAsync(string email, string companyName)
+        {
+            return await _memberRepository.SearchAsync(email, companyName);
+        }
     }
 }

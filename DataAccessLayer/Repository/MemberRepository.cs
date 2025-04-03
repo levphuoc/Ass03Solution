@@ -18,5 +18,13 @@ namespace DataAccessLayer.Repository
         {
             return await _dbSet.FirstOrDefaultAsync(m => m.Email == email);
         }
+
+        public async Task<IEnumerable<Member>> SearchAsync(string email, string companyName)
+        {
+            return await _context.Members
+                .Where(m => (string.IsNullOrEmpty(email) || m.Email.Contains(email)) &&
+                            (string.IsNullOrEmpty(companyName) || m.CompanyName.Contains(companyName)))
+                .ToListAsync();
+        }
     }
 }

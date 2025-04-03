@@ -10,5 +10,6 @@ namespace DataAccessLayer.Repository.Interfaces
     public interface IMemberRepository : IRepository<Member>
     {
         Task<Member?> GetByEmailAsync(string email);
+        Task<IEnumerable<Member>> SearchAsync(string email, string companyName);
     }
 }
