@@ -23,5 +23,11 @@ namespace BLL.Services.IServices
         
         // Phương thức lấy sản phẩm theo trang
         Task<(IEnumerable<ProductDTO> Products, int TotalCount)> GetPagedProductsAsync(int pageNumber, int pageSize);
+        
+        // Phương thức giảm số lượng hàng trong kho khi đặt hàng
+        Task<bool> DecreaseStockAsync(int productId, int quantity);
+        
+        // Phương thức giảm đồng thời số lượng hàng cho nhiều sản phẩm
+        Task<bool> DecreaseStockForMultipleProductsAsync(Dictionary<int, int> productQuantities);
     }
 }

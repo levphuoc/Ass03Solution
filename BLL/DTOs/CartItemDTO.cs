@@ -22,5 +22,7 @@ namespace BLL.DTOs
         public List<CartItemDTO> Items { get; set; } = new List<CartItemDTO>();
         public decimal TotalAmount => Items.Sum(item => item.Total);
         public int TotalItems => Items.Sum(item => item.Quantity);
+        public string ErrorMessage { get; set; }
+        public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
     }
 } 

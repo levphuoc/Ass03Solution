@@ -25,7 +25,7 @@
 @if (IsSuccess)
 {
     <div class="alert alert-success mt-4 text-center">
-        Order Created Successfully!
+        <i class="fas fa-check-circle me-2"></i> Order Created Successfully! Product inventory has been updated.
     </div>
 }
 <div class="card shadow-sm p-4 mb-4">
@@ -319,7 +319,10 @@
                     Discount = item.Discount
 
                 }).ToList();
+            
+            // Add order details and decrease product stock
             await OrderDetailService.AddOrderDetailsAsync(orderDetails);
+            Console.WriteLine($"Order details added and product stock decreased for order {createdOrderId}");
             
             // Xóa giỏ hàng sau khi tạo đơn hàng thành công
             var idString = HttpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;

@@ -89,7 +89,23 @@ namespace BLL.Services
                 if (product == null)
                 {
                     _logger?.LogWarning($"Cannot add to cart - Product {productId} not found");
-                    return new CartDTO();
+                    return new CartDTO { ErrorMessage = "Product not found." };
+                }
+                
+                // Check if product is in stock
+                if (product.UnitsInStock <= 0)
+                {
+                    _logger?.LogWarning($"Cannot add to cart - Product {productId} is out of stock");
+                    return new CartDTO { ErrorMessage = $"Product '{product.ProductName}' is out of stock." };
+                }
+                
+                // Check if requested quantity is available
+                if (product.UnitsInStock < quantity)
+                {
+                    _logger?.LogWarning($"Cannot add requested quantity - Product {productId} has only {product.UnitsInStock} units in stock");
+                    return new CartDTO { 
+                        ErrorMessage = $"Only {product.UnitsInStock} units of '{product.ProductName}' are available." 
+                    };
                 }
 
                 await _unitOfWork.Carts.AddItemToCartAsync(
@@ -103,7 +119,7 @@ namespace BLL.Services
             catch (Exception ex)
             {
                 _logger?.LogError(ex, $"Error adding product {productId} to cart for member {memberId}");
-                return new CartDTO();
+                return new CartDTO { ErrorMessage = "An error occurred while adding the product to cart." };
             }
         }
 
@@ -112,13 +128,47 @@ namespace BLL.Services
         {
             try
             {
+                // If quantity is 0 or negative, remove the item instead
+                if (quantity <= 0)
+                {
+                    return await RemoveFromCartAsync(memberId, productId);
+                }
+                
+                // Check product stock availability
+                var product = await _productService.GetProductByIdAsync(productId);
+                if (product == null)
+                {
+                    _logger?.LogWarning($"Cannot update cart - Product {productId} not found");
+                    return new CartDTO { ErrorMessage = "Product not found." };
+                }
+                
+                // Check if product is in stock
+                if (product.UnitsInStock <= 0)
+                {
+                    _logger?.LogWarning($"Cannot update cart - Product {productId} is out of stock");
+                    // Remove the item from cart since it's out of stock
+                    await RemoveFromCartAsync(memberId, productId);
+                    return new CartDTO { ErrorMessage = $"Product '{product.ProductName}' has been removed from your cart because it is out of stock." };
+                }
+                
+                // Check if requested quantity is available
+                if (product.UnitsInStock < quantity)
+                {
+                    _logger?.LogWarning($"Cannot update to requested quantity - Product {productId} has only {product.UnitsInStock} units available");
+                    // Update to maximum available quantity instead
+                    await _unitOfWork.Carts.UpdateCartItemQuantityAsync(memberId, productId, product.UnitsInStock);
+                    var cart = await GetCartAsync(memberId);
+                    cart.ErrorMessage = $"Only {product.UnitsInStock} units of '{product.ProductName}' are available. Your cart has been updated.";
+                    return cart;
+                }
+
                 await _unitOfWork.Carts.UpdateCartItemQuantityAsync(memberId, productId, quantity);
                 return await GetCartAsync(memberId);
             }
             catch (Exception ex)
             {
                 _logger?.LogError(ex, $"Error updating product {productId} quantity in cart for member {memberId}");
-                return new CartDTO();
+                return new CartDTO { ErrorMessage = "An error occurred while updating the cart." };
             }
         }
 
