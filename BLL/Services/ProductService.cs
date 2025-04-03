@@ -1,5 +1,5 @@
+﻿using BLL.DTOs;
 ﻿using AutoMapper;
-using BLL.DTOs;
 using BLL.Hubs;
 using BLL.Services.IServices;
 using DataAccessLayer.Entities;
@@ -17,6 +17,7 @@ namespace BLL.Services
     public class ProductService : IProductService
     {
         private readonly IUnitOfWork _unitOfWork;
+
         private readonly IHubContext<ProductHub> _productHub;
         private readonly IMapper _mapper;
 
@@ -25,6 +26,24 @@ namespace BLL.Services
             _unitOfWork = unitOfWork;
             _productHub = productHub;
             _mapper = mapper;
+        }
+
+        public async Task<List<ProductSelectModel>> GetProductsAsync()
+        {
+            var products = await _unitOfWork.Products.GetAllAsync();
+
+            return products.Select(p => new ProductSelectModel
+            {
+                ProductId = p.ProductId,
+                ProductName = p.ProductName,
+                UnitPrice = p.UnitPrice
+
+            }).ToList();
+        }
+        public async Task<bool> CheckStockAvailabilityAsync(int productId, int quantity)
+        {
+            var product = await _unitOfWork.Products.GetByIdAsync(productId);
+            return product != null && product.UnitsInStock >= quantity;
         }
 
         public async Task<IEnumerable<ProductDTO>> GetAllProductsAsync()

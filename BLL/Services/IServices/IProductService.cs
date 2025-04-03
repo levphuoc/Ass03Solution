@@ -10,6 +10,8 @@ namespace BLL.Services.IServices
 {
     public interface IProductService
     {
+        Task<List<ProductSelectModel>> GetProductsAsync();
+        Task<bool> CheckStockAvailabilityAsync(int productId, int quantity);
         Task<IEnumerable<ProductDTO>> GetAllProductsAsync();
         Task<ProductDTO> GetProductByIdAsync(int productId);
         Task<ProductDTO> CreateProductAsync(CreateProductDTO productDto);

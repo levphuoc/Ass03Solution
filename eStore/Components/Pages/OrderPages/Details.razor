@@ -1,0 +1,135 @@
+﻿@page "/orders/details"
+
+@using BLL.DTOs
+@using BLL.Services.IServices
+@inject IOrderService OrderService
+@inject IOrderDetailService OrderDetailService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Order Details</PageTitle>
+
+<h1>📦 Order Details</h1>
+<hr />
+
+@if (OrderModel == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <h4>Order Info</h4>
+    <dl class="row">
+        <dt class="col-sm-2">Member ID</dt>
+        <dd class="col-sm-10">@OrderModel.MemberId</dd>
+
+        <dt class="col-sm-2">Order Date</dt>
+        <dd class="col-sm-10">@OrderModel.OrderDate.ToShortDateString()</dd>
+
+        <dt class="col-sm-2">Required Date</dt>
+        <dd class="col-sm-10">@OrderModel.RequiredDate.ToShortDateString()</dd>
+
+        <dt class="col-sm-2">Shipped Date</dt>
+        <dd class="col-sm-10">@OrderModel.ShippedDate.ToShortDateString()</dd>
+
+        <dt class="col-sm-2">Freight</dt>
+        
+        <dd class="col-sm-10">@((decimal)OrderModel.Freight % 1 == 0 ? ((decimal)OrderModel.Freight).ToString("0") : ((decimal)OrderModel.Freight).ToString("0.##")) kg</dd>
+    </dl>
+
+    <h4 class="mt-4">🧾 Order Details</h4>
+
+    @if (OrderItems == null || !OrderItems.Any())
+    {
+        <p>No items found for this order.</p>
+    }
+    else
+    {
+        <table class="table table-bordered">
+            <thead class="table-light">
+                <tr>
+                    <th>Product</th>
+                    <th>Unit Price</th>
+                    <th>Quantity</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in OrderItems)
+                {
+                    <tr>
+                        <td>@item.ProductName</td>
+                       
+                        <td>@(item.UnitPrice % 1 == 0 ? item.UnitPrice.ToString("C0") : item.UnitPrice.ToString("C"))</td>
+
+                        <td>@item.Quantity</td>
+                       <td>@(item.UnitPrice * item.Quantity * (1 - (decimal)item.Discount) % 1 == 0
+    ? $"${(item.UnitPrice * item.Quantity * (1 - (decimal)item.Discount)):0}"
+    : $"${(item.UnitPrice * item.Quantity * (1 - (decimal)item.Discount)):0.##}")</td>
+
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    <div class="mt-4 d-flex justify-content-end">
+        <h4 class="text-primary">Total: <strong>@total.ToString("C")</strong></h4>
+    </div>
+    <div>
+       
+        <a href="/orders" class="btn btn-secondary ms-2">Back to List</a>
+    </div>
+}
+
+
+@code {
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public int OrderId { get; set; }
+
+    private OrderDTO? OrderModel { get; set; }
+    private List<OrderItemDTO> OrderItems { get; set; } = new();
+    private bool IsLoading = true;
+    private string? ErrorMessage = null;
+    private double total = 0;
+    protected override async Task OnParametersSetAsync()
+    {
+        try
+        {
+            IsLoading = true;
+
+            if (OrderId <= 0)
+            {
+                ErrorMessage = "Invalid OrderId.";
+                return;
+            }
+
+            // Lấy dữ liệu Order
+            OrderModel = await OrderService.GetOrderByIdAsync(OrderId);
+
+            if (OrderModel == null)
+            {
+                ErrorMessage = "Order not found.";
+                return;
+            }
+
+            // Lấy danh sách OrderItems của Order đó
+            OrderItems = await OrderDetailService.GetOrderItemsByOrderIdAsync(OrderId);
+
+            if (OrderItems == null || OrderItems.Count == 0)
+            {
+                ErrorMessage = "No Order Items found for this Order.";
+            }
+            total = OrderItems.Sum(item => (double)(item.UnitPrice * item.Quantity * (1 - (decimal)item.Discount)));
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+}
+
+

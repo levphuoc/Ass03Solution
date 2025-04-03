@@ -9,11 +9,8 @@ using System.Threading.Tasks;
 
 namespace DataAccessLayer.Repository
 {
-    public class OrderDetailRepository : GenericRepository<OrderDetail>, IOrderDetailRepository
+    public class TrackingRepository : GenericRepository<TracingOrder>, ITrackingOrderRepository
     {
-       
-
-        public OrderDetailRepository(EStoreDbContext context) : base(context) { }
-
+        public TrackingRepository(EStoreDbContext context) : base(context) { }
     }
 }

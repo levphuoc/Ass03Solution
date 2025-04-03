@@ -50,6 +50,50 @@
             </NavLink>
         </div>
 
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="counter">
+                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="weather">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
+            </NavLink>
+        </div>
+        
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="salesReport">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Sales Report
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+           
+           
+           
+            <NavLink class="nav-link" href="members">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Members
+
+            </NavLink>
+            <NavLink class="nav-link" href="ordersShipper">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> OrderShipper
+
+            </NavLink>
+            <NavLink class="nav-link" href="ordersStaff">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> OrderStaff
+
+            </NavLink>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="orders">
+                    <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Order
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href=" trackingorders">
+                    <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> tracking order
+                </NavLink>
+            </div>
+        </div>
         @if (_initialized && currentUser != null)
         {
             @if (currentRoles.Contains("Admin") || currentRoles.Contains("Staff") || currentRoles.Contains("Member"))
@@ -57,6 +101,14 @@
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="salesReport">
                         <span class="bi bi-graph-up-nav-menu" aria-hidden="true"></span> Sales Report
+                    </NavLink>
+                </div>
+            }
+            @if (currentRoles.Contains("Shipped") || currentRoles.Contains("Staff") || currentRoles.Contains("Member"))
+            {
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="orders">
+                        <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Order
                     </NavLink>
                 </div>
             }
@@ -77,7 +129,11 @@
                         <span class="bi bi-box-nav-menu" aria-hidden="true"></span> Products
                     </NavLink>
                 </div>
-                
+                <div class="nav-item px-3">
+                <NavLink class="nav-link" href=" trackingorders">
+                    <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> tracking order
+                </NavLink>
+                </div>
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="categories">
                         <span class="bi bi-tags-nav-menu" aria-hidden="true"></span> Categories
@@ -217,4 +273,4 @@
         catch { /* Ignore disposal errors */ }
     }
 }
-
+}
