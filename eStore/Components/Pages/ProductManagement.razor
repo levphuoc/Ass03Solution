@@ -6,16 +6,21 @@
 @using Microsoft.AspNetCore.Authorization
 @using BLL.DTOs
 @using BLL.Services.IServices
+@using BLL.Services
 @using AutoMapper
 @implements IAsyncDisposable
 @attribute [Authorize(Policy = "RequireAdmin")]
 @inject IProductService ProductService
 @inject ICategoryService CategoryService
+@inject IAuthService AuthService
 @inject IMapper Mapper
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 
 <h3>Product Management</h3>
+<div class="mb-3">
+    <span class="badge bg-info">Your role: @currentUser?.Role</span>
+</div>
 
 <div class="row mb-4">
     <div class="col">
@@ -251,6 +256,7 @@ else
     private UpdateProductDTO updateProduct = new UpdateProductDTO();
     private bool isNewProduct = true;
     private string errorMessage = "";
+    private DataAccessLayer.Entities.Member? currentUser;
     
     // DotNetObjectReference để gọi từ JS
     private DotNetObjectReference<ProductManagement> objRef;
@@ -281,6 +287,9 @@ else
         try
         {
             Console.WriteLine("OnInitializedAsync started");
+            
+            // Load current user
+            currentUser = await AuthService.GetCurrentUserAsync();
             
             // Tải danh sách categories trước
             await LoadCategories();
