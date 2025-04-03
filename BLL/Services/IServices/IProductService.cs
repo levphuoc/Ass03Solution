@@ -15,5 +15,8 @@ namespace BLL.Services.IServices
         Task<ProductDTO> CreateProductAsync(CreateProductDTO productDto);
         Task<ProductDTO> UpdateProductAsync(UpdateProductDTO productDto);
         Task<bool> DeleteProductAsync(int productId);
+        
+        // Phương thức tìm kiếm sản phẩm
+        Task<IEnumerable<ProductDTO>> SearchProductsAsync(string? productName, decimal? minPrice, decimal? maxPrice, string? categoryName);
     }
 }

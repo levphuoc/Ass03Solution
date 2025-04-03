@@ -5,6 +5,7 @@ using BLL.Services.IServices;
 using DataAccessLayer.Entities;
 using DataAccessLayer.UnitOfWork;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -28,14 +29,41 @@ namespace BLL.Services
 
         public async Task<IEnumerable<ProductDTO>> GetAllProductsAsync()
         {
+            // Lấy tất cả sản phẩm từ repository
             var products = await _unitOfWork.Products.GetAllAsync();
-            return _mapper.Map<IEnumerable<ProductDTO>>(products);
+            
+            // Lấy tất cả danh mục
+            var categories = await _unitOfWork.Categories.GetAllAsync();
+            
+            // Map từ Product sang ProductDTO và thêm CategoryName
+            var productDTOs = products.Select(p => {
+                var dto = _mapper.Map<ProductDTO>(p);
+                dto.CategoryName = categories.FirstOrDefault(c => c.CategoryId == p.CategoryId)?.CategoryName ?? "Unknown";
+                return dto;
+            });
+            
+            return productDTOs;
         }
 
         public async Task<ProductDTO> GetProductByIdAsync(int productId)
         {
             var product = await _unitOfWork.Products.GetByIdAsync(productId);
-            return _mapper.Map<ProductDTO>(product);
+            
+            if (product != null)
+            {
+                var dto = _mapper.Map<ProductDTO>(product);
+                
+                // Lấy thông tin Category
+                var category = await _unitOfWork.Categories.GetByIdAsync(product.CategoryId);
+                if (category != null)
+                {
+                    dto.CategoryName = category.CategoryName;
+                }
+                
+                return dto;
+            }
+            
+            return null;
         }
 
         public async Task<ProductDTO> CreateProductAsync(CreateProductDTO productDto)
@@ -46,6 +74,13 @@ namespace BLL.Services
             await _unitOfWork.SaveChangesAsync();
             
             var createdProductDto = _mapper.Map<ProductDTO>(product);
+            
+            // Lấy thông tin Category
+            var category = await _unitOfWork.Categories.GetByIdAsync(product.CategoryId);
+            if (category != null)
+            {
+                createdProductDto.CategoryName = category.CategoryName;
+            }
             
             // Send realtime notification
             await _productHub.Clients.All.SendAsync("ProductCreated", createdProductDto);
@@ -66,6 +101,13 @@ namespace BLL.Services
             
             var updatedProductDto = _mapper.Map<ProductDTO>(existingProduct);
             
+            // Lấy thông tin Category
+            var category = await _unitOfWork.Categories.GetByIdAsync(existingProduct.CategoryId);
+            if (category != null)
+            {
+                updatedProductDto.CategoryName = category.CategoryName;
+            }
+            
             // Send realtime notification
             await _productHub.Clients.All.SendAsync("ProductUpdated", updatedProductDto);
 
@@ -85,6 +127,50 @@ namespace BLL.Services
             await _productHub.Clients.All.SendAsync("ProductDeleted", productId);
 
             return true;
+        }
+
+        public async Task<IEnumerable<ProductDTO>> SearchProductsAsync(string? productName, decimal? minPrice, decimal? maxPrice, string? categoryName)
+        {
+            // Lấy tất cả sản phẩm
+            var products = await _unitOfWork.Products.GetAllAsync();
+            var categories = await _unitOfWork.Categories.GetAllAsync();
+            
+            // Map sang DTO và thêm CategoryName
+            var productDTOs = products.Select(p => {
+                var dto = _mapper.Map<ProductDTO>(p);
+                dto.CategoryName = categories.FirstOrDefault(c => c.CategoryId == p.CategoryId)?.CategoryName ?? "Unknown";
+                return dto;
+            }).ToList();
+            
+            // Lọc theo các điều kiện
+            var query = productDTOs.AsQueryable();
+            
+            // Lọc theo tên sản phẩm
+            if (!string.IsNullOrWhiteSpace(productName))
+            {
+                query = query.Where(p => p.ProductName.Contains(productName, StringComparison.OrdinalIgnoreCase));
+            }
+            
+            // Lọc theo giá tối thiểu
+            if (minPrice.HasValue)
+            {
+                query = query.Where(p => p.UnitPrice >= minPrice.Value);
+            }
+            
+            // Lọc theo giá tối đa
+            if (maxPrice.HasValue)
+            {
+                query = query.Where(p => p.UnitPrice <= maxPrice.Value);
+            }
+            
+            // Lọc theo tên danh mục
+            if (!string.IsNullOrWhiteSpace(categoryName))
+            {
+                query = query.Where(p => p.CategoryName != null && 
+                    p.CategoryName.Contains(categoryName, StringComparison.OrdinalIgnoreCase));
+            }
+            
+            return query.ToList();
         }
     }
 }

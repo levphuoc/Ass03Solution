@@ -14,5 +14,6 @@ namespace DataAccessLayer.Repository.Interfaces
         Task AddAsync(Categories category);
         Task UpdateAsync(Categories category);
         Task DeleteAsync(int id);
+        Task<IEnumerable<Categories>> GetAllAsync();
     }
 }
