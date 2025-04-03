@@ -212,6 +212,10 @@ namespace DataAccessLayer.Migrations
                     b.Property<int>("UnitsInStock")
                         .HasColumnType("int");
 
+                    b.Property<string>("UrlImage")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<string>("Weight")
                         .IsRequired()
                         .HasMaxLength(20)
