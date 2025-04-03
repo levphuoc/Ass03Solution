@@ -19,7 +19,7 @@ namespace DataAccessLayer.Data
         public DbSet<Product> Products { get; set; }
         public DbSet<OrderDetail> OrderDetails { get; set; }
         public DbSet<Cart> Carts { get; set; }
-        public DbSet<CartDetail> CartDetails { get; set; }
+        public DbSet<CartItem> CartItems { get; set; }
         public DbSet<Categories> Categories { get; set; }
         public DbSet<TracingOrder> TracingOrders { get; set; }
 
@@ -67,17 +67,13 @@ namespace DataAccessLayer.Data
                 .HasOne(p => p.Category)
                 .WithMany(c => c.Products)
                 .HasForeignKey(p => p.CategoryId);
-            modelBuilder.Entity<CartDetail>()
-                .HasKey(cd => new { cd.CartId, cd.ProductId });
 
+            modelBuilder.Entity<CartItem>()
+                .HasKey(ci => new { ci.CartId, ci.ProductId });
 
-            modelBuilder.Entity<OrderDetail>()
-                .HasKey(od => new { od.OrderId, od.ProductId });
-
-            modelBuilder.Entity<CartDetail>()
-               .Property(cd => cd.TotalPrice)
-               .HasColumnType("decimal(18, 2)");
-            
+            modelBuilder.Entity<CartItem>()
+                .Property(ci => ci.TotalPrice)
+                .HasColumnType("decimal(18, 2)");
         }
     }
 }
