@@ -6,11 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace DataAccessLayer.Migrations
 {
     /// <inheritdoc />
-<<<<<<<< HEAD:DataAccessLayer/Migrations/20250403130336_Init.cs
-    public partial class Init : Migration
-========
-    public partial class meme : Migration
->>>>>>>> updateOrder:DataAccessLayer/Migrations/20250403105718_meme.cs
+    public partial class lastDb : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -117,34 +113,6 @@ namespace DataAccessLayer.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "CartDetails",
-                columns: table => new
-                {
-                    CartId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    ProductId = table.Column<int>(type: "int", nullable: false),
-                    Quantity = table.Column<int>(type: "int", nullable: false),
-                    TotalPrice = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    CartId1 = table.Column<int>(type: "int", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_CartDetails", x => x.CartId);
-                    table.ForeignKey(
-                        name: "FK_CartDetails_Carts_CartId1",
-                        column: x => x.CartId1,
-                        principalTable: "Carts",
-                        principalColumn: "CartId",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_CartDetails_Products_ProductId",
-                        column: x => x.ProductId,
-                        principalTable: "Products",
-                        principalColumn: "ProductId",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "CartItems",
                 columns: table => new
                 {
@@ -152,8 +120,8 @@ namespace DataAccessLayer.Migrations
                     ProductId = table.Column<int>(type: "int", nullable: false),
                     CartItemId = table.Column<int>(type: "int", nullable: false),
                     Quantity = table.Column<int>(type: "int", nullable: false),
-                    UnitPrice = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    TotalPrice = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    UnitPrice = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    TotalPrice = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
@@ -226,16 +194,6 @@ namespace DataAccessLayer.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_CartDetails_CartId1",
-                table: "CartDetails",
-                column: "CartId1");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_CartDetails_ProductId",
-                table: "CartDetails",
-                column: "ProductId");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_CartItems_ProductId",
                 table: "CartItems",
                 column: "ProductId");
@@ -269,9 +227,6 @@ namespace DataAccessLayer.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "CartDetails");
-
             migrationBuilder.DropTable(
                 name: "CartItems");
 

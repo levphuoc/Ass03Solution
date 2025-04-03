@@ -14,7 +14,6 @@ namespace DataAccessLayer.UnitOfWork
         IOrderRepository Orders { get; }
         IOrderDetailRepository OrderDetails { get; }
         ICartRepository Carts { get; }
-        ICartDetailRepository CartDetails { get; }
         ITrackingOrderRepository TrackingOrders { get; }
         ICategoryRepository Categories { get; }
         

@@ -18,56 +18,48 @@ namespace DataAccessLayer.Repository
 
         public async Task<List<CartItem>> GetCartItemsByCartIdAsync(int userId)
         {
-
-            var cart = await _context.Carts.FirstOrDefaultAsync(n => n.MemberId == userId);
-            if (cart == null)
+            try 
             {
-               
-                return new List<CartItem>(); 
+                // Execute everything in a single query to avoid context disposal issues
+                return await _context.Carts
+                    .Where(c => c.MemberId == userId)
+                    .SelectMany(c => _context.CartItems
+                        .Where(ci => ci.CartId == c.CartId)
+                        .Include(ci => ci.Product))
+                    .ToListAsync();
             }
-
-            var cartDetails = await _context.CartItems
-                                            .Where(ci => ci.CartId == cart.CartId)
-                                            .Include(ci => ci.Product)
-                                            .ToListAsync();
-
-            if (cartDetails == null || !cartDetails.Any()) 
+            catch (Exception ex)
             {
-               
+                // Log the exception
+                Console.WriteLine($"Error in GetCartItemsByCartIdAsync: {ex.Message}");
                 return new List<CartItem>();
             }
-
-            return cartDetails; 
         }
        
         public async Task DeleteCartAndItemsByMemberIdAsync(int memberId)
         {
-            
             var cart = await _context.Carts.FirstOrDefaultAsync(c => c.MemberId == memberId);
 
             if (cart == null)
             {
-                
                 return;
             }
 
             int cartId = cart.CartId;
-         
 
-           
-            var cartItems = await _context.CartDetails.Where(ci => ci.CartId == cartId).ToListAsync();
+            // Lấy và xóa các cart items
+            var cartItems = await _context.CartItems.Where(ci => ci.CartId == cartId).ToListAsync();
 
             if (cartItems.Any())
             {
-               
                 foreach (var cartItem in cartItems)
                 {
-                    _context.CartDetails.Remove(cartItem);  
+                    _context.CartItems.Remove(cartItem);  
                 }
             }
+            
             _context.Carts.Remove(cart);
             await _context.SaveChangesAsync();
-
         }
 
 

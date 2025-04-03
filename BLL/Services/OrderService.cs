@@ -11,6 +11,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace BLL.Services
 {
@@ -241,30 +242,26 @@ namespace BLL.Services
         }
         public async Task<List<Order>> GetPagedOrdersStaffAsync(int pageNumber, int pageSize, string status)
         {
-            var validStatuses = new List<OrderStatus>
-    {
-        OrderStatus.Spending,
-        OrderStatus.Approve,
-        OrderStatus.Reject
-    };
-
+            // Allow staff to see all order statuses
             Expression<Func<Order, bool>> predicate;
 
             if (status == "ALL")
             {
-                // Chỉ lấy các trạng thái trong danh sách hợp lệ (Spending, Approve, Reject)
-                predicate = o => validStatuses.Contains(o.Status);
+                // Return all orders regardless of status
+                predicate = o => true;
             }
-            else if (Enum.TryParse<OrderStatus>(status, true, out var parsedStatus) && validStatuses.Contains(parsedStatus))
+            else if (Enum.TryParse<OrderStatus>(status, true, out var parsedStatus))
             {
+                // Filter by the specific status
                 predicate = o => o.Status == parsedStatus;
             }
             else
             {
-                // Nếu không hợp lệ hoặc không nằm trong validStatuses, trả về danh sách rỗng
+                // Invalid status - return empty list
                 return new List<Order>();
             }
 
+            // Use the existing GetPagedAsync method
             var (orders, totalCount) = await _unitOfWork.Orders.GetPagedAsync(
                 pageNumber,
                 pageSize,
@@ -272,7 +269,17 @@ namespace BLL.Services
                 query => query.OrderByDescending(o => o.OrderDate)
             );
 
-            return orders.ToList();
+            // Load members separately if needed
+            var ordersList = orders.ToList();
+            foreach (var order in ordersList)
+            {
+                if (order.MemberId > 0)
+                {
+                    order.Member = await _unitOfWork.Members.GetByIdAsync(order.MemberId);
+                }
+            }
+
+            return ordersList;
         }
 
         public async Task<List<Order>> GetPagedOrdersShipperAsync(int pageNumber, int pageSize, string status)

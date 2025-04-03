@@ -137,10 +137,12 @@ else
                                 <div class="mb-3">
                                     <label>Role:</label>
                                     <InputSelect @bind-Value="selectedMember.Role" class="form-control">
+                                        <option value="">Select a role</option>
+                                        <option value="Deliverer">Deliverer</option>
                                         <option value="User">User</option>
-                                        <option value="Member">Member</option>
-                                        <option value="Staff">Staff</option>
                                         <option value="Admin">Admin</option>
+                                        <option value="Staff">Staff</option>
+                                        <option value="Shipper">Shipper</option>
                                     </InputSelect>
                                 </div>
                             }

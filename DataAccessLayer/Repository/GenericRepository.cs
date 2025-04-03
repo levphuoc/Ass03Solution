@@ -91,26 +91,42 @@ namespace DataAccessLayer.Repository
             Expression<Func<TEntity, bool>>? predicate = null,
             Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null)
         {
-            IQueryable<TEntity> query = _dbSet;
-
-            if (predicate != null)
+            try
             {
-                query = query.Where(predicate);
+                // Step 1: Get count in a completely separate query
+                var countQuery = _dbSet.AsQueryable();
+                if (predicate != null)
+                {
+                    countQuery = countQuery.Where(predicate);
+                }
+                var totalCount = await countQuery.CountAsync();
+
+                // Step 2: Get items in a completely separate query
+                var itemsQuery = _dbSet.AsQueryable().AsSplitQuery();
+                if (predicate != null)
+                {
+                    itemsQuery = itemsQuery.Where(predicate);
+                }
+
+                if (orderBy != null)
+                {
+                    itemsQuery = orderBy(itemsQuery);
+                }
+
+                var items = await itemsQuery
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                return (items, totalCount);
             }
-
-            var totalCount = await query.CountAsync();
-
-            if (orderBy != null)
+            catch (Exception ex)
             {
-                query = orderBy(query);
+                // Log the error
+                Console.WriteLine($"Error in GetPagedAsync: {ex.Message}");
+                // Return empty result
+                return (new List<TEntity>(), 0);
             }
-
-            var items = await query
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
-
-            return (items, totalCount);
         }
     }
 }
