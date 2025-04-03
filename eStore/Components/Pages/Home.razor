@@ -9,6 +9,7 @@
 @inject IAuthService AuthService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
+@inject ICartService CartService
 
 <PageTitle>eStore - Home</PageTitle>
 
@@ -228,10 +229,25 @@
             return;
         }
         
-        // Hiển thị thông báo đã thêm vào giỏ hàng
-        await JSRuntime.InvokeVoidAsync("alert", $"{product.ProductName} has been added to your cart!");
-        
-        // Ở đây bạn có thể thêm logic thực tế để thêm sản phẩm vào giỏ hàng
+        try
+        {
+            // Thêm sản phẩm vào giỏ hàng với số lượng là 1
+            var cart = await CartService.AddToCartAsync(currentUser.MemberId, product.ProductId, 1);
+            
+            // Hiển thị thông báo đã thêm vào giỏ hàng
+            await JSRuntime.InvokeVoidAsync("alert", $"{product.ProductName} has been added to your cart!");
+            
+            // Tùy chọn: Chuyển hướng đến trang giỏ hàng
+            if (await JSRuntime.InvokeAsync<bool>("confirm", "View your cart now?"))
+            {
+                NavigationManager.NavigateTo("/cart");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error adding to cart: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", "Error adding item to cart");
+        }
     }
     
     private string GetProxyImageUrl(string originalUrl)

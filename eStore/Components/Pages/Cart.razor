@@ -1,0 +1,257 @@
+@page "/cart"
+@rendermode InteractiveServer
+@using BLL.DTOs
+@using BLL.Services.IServices
+@using BLL.Services
+@using Microsoft.AspNetCore.Authorization
+@using DataAccessLayer.Entities
+@inject ICartService CartService
+@inject IAuthService AuthService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>eStore - Shopping Cart</PageTitle>
+
+<div class="container mt-4">
+    <h1>Your Shopping Cart</h1>
+
+    @if (isLoading)
+    {
+        <div class="d-flex justify-content-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    }
+    else if (currentUser == null)
+    {
+        <div class="alert alert-warning">
+            <h4>Please Log In</h4>
+            <p>You need to be logged in to view your cart.</p>
+            <a href="/login" class="btn btn-primary">Go to Login</a>
+        </div>
+    }
+    else if (cart == null || !cart.Items.Any())
+    {
+        <div class="alert alert-info">
+            <h4>Your Cart is Empty</h4>
+            <p>You have no items in your shopping cart.</p>
+            <a href="/" class="btn btn-primary">Continue Shopping</a>
+        </div>
+    }
+    else
+    {
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h3 class="mb-0">Items in Your Cart</h3>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Price</th>
+                                <th>Quantity</th>
+                                <th>Total</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in cart.Items)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div style="width: 60px; height: 60px;" class="me-3">
+                                                @if (!string.IsNullOrEmpty(item.ProductImage))
+                                                {
+                                                    <img src="@GetProxyImageUrl(item.ProductImage)" style="max-width: 100%; max-height: 100%; object-fit: contain;" 
+                                                         alt="@item.ProductName" onerror="this.onerror=null; this.src='images/no-image.png';" />
+                                                }
+                                                else
+                                                {
+                                                    <img src="images/no-image.png" style="max-width: 100%; max-height: 100%; object-fit: contain;" alt="No Image" />
+                                                }
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0">@item.ProductName</h6>
+                                                <small class="text-muted">@item.CategoryName</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>@($"{item.UnitPrice:C}")</td>
+                                    <td>
+                                        <div class="input-group" style="width: 120px;">
+                                            <button class="btn btn-outline-secondary" type="button" @onclick="() => DecrementQuantity(item.ProductId)">-</button>
+                                            <input type="number" class="form-control text-center" min="1" value="@item.Quantity" 
+                                                   @onchange="(e) => UpdateQuantity(item.ProductId, Convert.ToInt32(e.Value))" />
+                                            <button class="btn btn-outline-secondary" type="button" @onclick="() => IncrementQuantity(item.ProductId)">+</button>
+                                        </div>
+                                    </td>
+                                    <td>@($"{item.Total:C}")</td>
+                                    <td>
+                                        <button class="btn btn-danger btn-sm" @onclick="() => RemoveItem(item.ProductId)">
+                                            <i class="bi bi-trash"></i> Remove
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th colspan="3" class="text-end">Total:</th>
+                                <th>@($"{cart.TotalAmount:C}")</th>
+                                <th></th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="d-flex justify-content-between">
+                    <a href="/" class="btn btn-outline-primary">
+                        <i class="bi bi-arrow-left"></i> Continue Shopping
+                    </a>
+                    <div>
+                        <button class="btn btn-outline-danger me-2" @onclick="ClearCart">
+                            <i class="bi bi-trash"></i> Clear Cart
+                        </button>
+                        <button class="btn btn-success" @onclick="Checkout">
+                            <i class="bi bi-credit-card"></i> Checkout
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private Member? currentUser;
+    private CartDTO? cart;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentUser = await AuthService.GetCurrentUserAsync();
+        await LoadCartData();
+    }
+
+    private async Task LoadCartData()
+    {
+        isLoading = true;
+        
+        try
+        {
+            if (currentUser != null)
+            {
+                cart = await CartService.GetCartAsync(currentUser.MemberId);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading cart: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", "Error loading cart data");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task UpdateQuantity(int productId, int quantity)
+    {
+        if (currentUser == null) return;
+        
+        if (quantity < 1) quantity = 1;
+        
+        try
+        {
+            cart = await CartService.UpdateCartItemAsync(currentUser.MemberId, productId, quantity);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating quantity: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", "Error updating item quantity");
+        }
+    }
+
+    private async Task IncrementQuantity(int productId)
+    {
+        if (currentUser == null || cart == null) return;
+        
+        var item = cart.Items.FirstOrDefault(i => i.ProductId == productId);
+        if (item != null)
+        {
+            await UpdateQuantity(productId, item.Quantity + 1);
+        }
+    }
+
+    private async Task DecrementQuantity(int productId)
+    {
+        if (currentUser == null || cart == null) return;
+        
+        var item = cart.Items.FirstOrDefault(i => i.ProductId == productId);
+        if (item != null && item.Quantity > 1)
+        {
+            await UpdateQuantity(productId, item.Quantity - 1);
+        }
+    }
+
+    private async Task RemoveItem(int productId)
+    {
+        if (currentUser == null) return;
+        
+        try
+        {
+            if (await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to remove this item?"))
+            {
+                cart = await CartService.RemoveFromCartAsync(currentUser.MemberId, productId);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error removing item: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", "Error removing item from cart");
+        }
+    }
+
+    private async Task ClearCart()
+    {
+        if (currentUser == null) return;
+        
+        try
+        {
+            if (await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to clear your cart?"))
+            {
+                await CartService.ClearCartAsync(currentUser.MemberId);
+                cart = new CartDTO();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error clearing cart: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", "Error clearing your cart");
+        }
+    }
+
+    private void Checkout()
+    {
+        // Redirect to checkout page (can be implemented later)
+        NavigationManager.NavigateTo("/checkout");
+    }
+
+    private string GetProxyImageUrl(string originalUrl)
+    {
+        if (string.IsNullOrEmpty(originalUrl))
+            return "";
+            
+        if (originalUrl.Contains("facebook.com") || originalUrl.Contains("fbcdn.net"))
+        {
+            return $"/api/proxy/image?url={Uri.EscapeDataString(originalUrl)}";
+        }
+        
+        return originalUrl;
+    }
+} 
