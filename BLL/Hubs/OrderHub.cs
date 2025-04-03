@@ -37,6 +37,10 @@ namespace BLL.Hubs
                 await Clients.All.SendAsync("OrderUpdated", order);
             }
         }
+        public async Task NotifyStatusChanged(int orderId, string newStatus)
+        {
+            await Clients.All.SendAsync("ReceiveStatusChange", orderId, newStatus);
+        }
 
 
     }

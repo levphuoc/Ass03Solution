@@ -7,9 +7,7 @@ using System.Threading.Tasks;
 
 namespace DataAccessLayer.Repository.Interfaces
 {
-    public interface ICartRepository : IRepository<Cart>
+    public interface ITrackingOrderRepository : IRepository<TracingOrder>
     {
-        Task<List<CartDetail>> GetCartItemsByCartIdAsync(int cartId);
-        Task DeleteCartAndItemsByMemberIdAsync(int memberId);
     }
 }

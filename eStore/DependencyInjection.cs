@@ -20,6 +20,10 @@ namespace eStore
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<ICategoryRepository, CategoryRepository>();
             services.AddScoped<ICategoryService, CategoryService>();
+            services.AddScoped<ICartService, CartService>();
+            services.AddScoped<ICartDetailRepository, CartDetailRepository>();
+            services.AddScoped<ITrackingOrderService, TracingOrderService>();
+            services.AddScoped<ICartRepository, CartRepository>();
             return services;
         }
     }

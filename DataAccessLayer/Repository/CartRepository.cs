@@ -28,22 +28,49 @@ namespace DataAccessLayer.Repository
                 return new List<CartDetail>(); 
             }
 
-            Console.WriteLine($"✅ CartId tìm thấy: {cart.CartId}");
-
-            // Lấy danh sách CartDetail theo CartId
             var cartDetails = await _context.CartDetails
                                             .Where(ci => ci.CartId == cart.CartId)
                                             .Include(ci => ci.Product)
                                             .ToListAsync();
 
-            if (cartDetails == null || !cartDetails.Any()) // Kiểm tra nếu không có sản phẩm
+            if (cartDetails == null || !cartDetails.Any()) 
             {
-                Console.WriteLine($"⚠ Không có sản phẩm trong CartId: {cart.CartId}");
+               
                 return new List<CartDetail>();
             }
 
-            return cartDetails; // Trả về danh sách CartDetail nếu có sản phẩm
+            return cartDetails; 
         }
+        public async Task DeleteCartAndItemsByMemberIdAsync(int memberId)
+        {
+            
+            var cart = await _context.Carts.FirstOrDefaultAsync(c => c.MemberId == memberId);
+
+            if (cart == null)
+            {
+                
+                return;
+            }
+
+            int cartId = cart.CartId;
+         
+
+           
+            var cartItems = await _context.CartDetails.Where(ci => ci.CartId == cartId).ToListAsync();
+
+            if (cartItems.Any())
+            {
+               
+                foreach (var cartItem in cartItems)
+                {
+                    _context.CartDetails.Remove(cartItem);  
+                }
+            }
+            _context.Carts.Remove(cart);
+            await _context.SaveChangesAsync();
+
+        }
+
 
 
     }

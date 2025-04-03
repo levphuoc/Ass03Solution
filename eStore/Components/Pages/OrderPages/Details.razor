@@ -71,9 +71,11 @@ else
             </tbody>
         </table>
     }
-
+    <div class="mt-4 d-flex justify-content-end">
+        <h4 class="text-primary">Total: <strong>@total.ToString("C")</strong></h4>
+    </div>
     <div>
-        <a href="@($"/orders/edit?orderid={OrderModel.OrderId}")" class="btn btn-primary">Edit</a>
+       
         <a href="/orders" class="btn btn-secondary ms-2">Back to List</a>
     </div>
 }
@@ -88,7 +90,7 @@ else
     private List<OrderItemDTO> OrderItems { get; set; } = new();
     private bool IsLoading = true;
     private string? ErrorMessage = null;
-
+    private double total = 0;
     protected override async Task OnParametersSetAsync()
     {
         try
@@ -117,6 +119,7 @@ else
             {
                 ErrorMessage = "No Order Items found for this Order.";
             }
+            total = OrderItems.Sum(item => (double)(item.UnitPrice * item.Quantity * (1 - (decimal)item.Discount)));
         }
         catch (Exception ex)
         {

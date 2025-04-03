@@ -11,7 +11,9 @@
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 @using Microsoft.AspNetCore.SignalR.Client
+@using System.Security.Claims
 @inject IOrderDetailService OrderDetailService
+@inject IHttpContextAccessor HttpContextAccessor
 <h3 class="text-primary mb-4"><i class="fas fa-file-alt"></i> Create New Order</h3>
 @if (ErrorMessage is not null)
 {
@@ -191,7 +193,24 @@
     }
     private async void AddOrderItem()
     {
-        var cartItems = await CartService.GetAllCartDetailById(1);
+
+    @inject IHttpContextAccessor HttpContextAccessor
+
+        // Lấy email user hiện tại
+        var idString = HttpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        // Chuyển từ string sang int
+        if (string.IsNullOrEmpty(idString) || !int.TryParse(idString, out int userId))
+        {
+            ErrorMessage = "User ID không hợp lệ hoặc không tìm thấy.";
+            return;
+        }
+
+        
+        bool isAdmin = HttpContextAccessor.HttpContext?.User?.IsInRole("Admin") ?? false;
+
+        
+        var cartItems = await CartService.GetAllCartDetailById(userId);
 
         if (cartItems != null && cartItems.Any())
         {
@@ -232,13 +251,30 @@
     {
             IsLoading = true;
             ErrorMessage = null;
+        if (OrderItems == null || !OrderItems.Any())
+        {
+            ErrorMessage = "You haven't added any products to the order.";
+            IsLoading = false;
+            return;
+        }
+
         if (OrderModel.Freight < 1 || OrderModel.Freight > 10000)
         {
             ErrorMessage = "Freight must be between 1 and 10,000.";
             IsLoading = false;
             return;
         }
+        foreach (var item in OrderItems)
+        {
+            var isAvailable = await ProductService.CheckStockAvailabilityAsync(item.ProductId, item.Quantity);
 
+            if (!isAvailable)
+            {
+                ErrorMessage = $"Product '{item.ProductName}' không đủ số lượng tồn kho.";
+                IsLoading = false;
+                return;
+            }
+        }
             
            
             var createdOrderId = await OrderService.CreateOrderAsync(OrderModel);

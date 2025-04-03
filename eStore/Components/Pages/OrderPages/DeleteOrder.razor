@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @using BLL.DTOs
 @using BLL.Services.IServices
+@using Microsoft.AspNetCore.SignalR.Client
 @inject IOrderService OrderService
 @inject IOrderDetailService OrderDetailService
 @inject NavigationManager NavigationManager
@@ -77,13 +78,28 @@
     private bool IsLoading = false;
     private bool IsSuccess = false;
     private string? ErrorMessage;
-
+    private HubConnection? hubConnection;
    
     protected override async Task OnParametersSetAsync()
     {
         try
         {
             IsLoading = true;
+
+
+            hubConnection = new HubConnectionBuilder()
+         .WithUrl(NavigationManager.ToAbsoluteUri("/orderHub"))
+         .WithAutomaticReconnect()
+         .Build();
+
+            hubConnection.On<int>("OrderCreated", (orderId) =>
+            {
+
+                Console.WriteLine($"Order {orderId} created successfully.");
+                InvokeAsync(() => StateHasChanged());
+            });
+
+            await hubConnection.StartAsync();
            
             OrderModel = await OrderService.GetOrderByIdAsync(orderid);
 
@@ -125,7 +141,7 @@
 
                 // Delete the order
                 await OrderService.DeleteOrderAsync(orderid);
-
+                await hubConnection.InvokeAsync("NotifyOrderCreation", orderid);
                 // Success message
                 IsSuccess = true;
 

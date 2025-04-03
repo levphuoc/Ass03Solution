@@ -50,14 +50,14 @@
                 <!-- Order Date -->
                 <div class="col-md-6">
                     <label class="form-label fw-bold">Order Date</label>
-                    <InputDate @bind-Value="OrderModel.OrderDate" class="form-control" min="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                    <InputDate @bind-Value="OrderModel.OrderDate" class="form-control" min="@DateTime.Now.ToString("yyyy-MM-dd")" readonly />
                 </div>
 
                 <!-- Required Date & Shipped Date -->
                 <div class="row g-3 mb-3">
                     <div class="col-md-6">
                         <label class="form-label fw-bold">Required Date</label>
-                        <InputDate @bind-Value="OrderModel.RequiredDate" class="form-control" min="@OrderModel.OrderDate.ToString("yyyy-MM-dd")" />
+                        <InputDate @bind-Value="OrderModel.RequiredDate" class="form-control" min="@OrderModel.OrderDate.ToString("yyyy-MM-dd")" readonly />
                     </div>
 
                     <div class="col-md-6">

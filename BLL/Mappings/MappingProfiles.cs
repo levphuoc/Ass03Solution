@@ -1,5 +1,7 @@
 ﻿using AutoMapper;
 using AutoMapper.Execution;
+using BLL.DTOs;
+using DataAccessLayer.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,6 +15,8 @@ namespace BLL.Mappings
         public MappingProfiles()
         {
             /*CreateMap<CreateMember, Member>().ReverseMap();*/
+
+            CreateMap<TracingOrder, TrackingOrderDTO>().ReverseMap();
         }
     }
 }

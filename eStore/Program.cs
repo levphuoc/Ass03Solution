@@ -10,6 +10,7 @@ using DataAccessLayer.Repository;
 using DataAccessLayer.Entities;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using eStore;
+using BLL.Mappings;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,8 +30,8 @@ builder.Services.AddDbContext<EStoreDbContext>(options =>
     .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
 
 // Changed from Scoped to Transient to prevent concurrent access issues
-builder.Services.AddTransient<IUnitOfWork, UnitOfWork>();
-
+//builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddAutoMapper(typeof(MappingProfiles));
 // Authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>

@@ -9,5 +9,6 @@ namespace DataAccessLayer.Repository.Interfaces
 {
     public interface ICartDetailRepository : IRepository<CartDetail>
     {
+        Task<List<CartDetail>> GetAllCartDetailById(int userId);
     }
 }

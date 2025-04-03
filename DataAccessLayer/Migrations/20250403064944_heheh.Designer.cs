@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DataAccessLayer.Migrations
 {
     [DbContext(typeof(EStoreDbContext))]
-    [Migration("20250402184727_check")]
-    partial class check
+    [Migration("20250403064944_heheh")]
+    partial class heheh
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -64,7 +64,7 @@ namespace DataAccessLayer.Migrations
                     b.ToTable("CartDetails");
                 });
 
-            modelBuilder.Entity("DataAccessLayer.Entities.Category", b =>
+            modelBuilder.Entity("DataAccessLayer.Entities.Categories", b =>
                 {
                     b.Property<int>("CategoryId")
                         .ValueGeneratedOnAdd()
@@ -83,7 +83,7 @@ namespace DataAccessLayer.Migrations
 
                     b.HasKey("CategoryId");
 
-                    b.ToTable("Category");
+                    b.ToTable("Categories");
                 });
 
             modelBuilder.Entity("DataAccessLayer.Entities.Member", b =>
@@ -118,6 +118,11 @@ namespace DataAccessLayer.Migrations
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.HasKey("MemberId");
 
@@ -220,6 +225,36 @@ namespace DataAccessLayer.Migrations
                     b.ToTable("Products");
                 });
 
+            modelBuilder.Entity("DataAccessLayer.Entities.TracingOrder", b =>
+                {
+                    b.Property<int>("TracingOrderId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TracingOrderId"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("MemberId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("TracingOrderId");
+
+                    b.HasIndex("OrderId");
+
+                    b.ToTable("TracingOrders");
+                });
+
             modelBuilder.Entity("DataAccessLayer.Entities.Cart", b =>
                 {
                     b.HasOne("DataAccessLayer.Entities.Member", "Member")
@@ -282,7 +317,7 @@ namespace DataAccessLayer.Migrations
 
             modelBuilder.Entity("DataAccessLayer.Entities.Product", b =>
                 {
-                    b.HasOne("DataAccessLayer.Entities.Category", "Category")
+                    b.HasOne("DataAccessLayer.Entities.Categories", "Category")
                         .WithMany("Products")
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -291,12 +326,23 @@ namespace DataAccessLayer.Migrations
                     b.Navigation("Category");
                 });
 
+            modelBuilder.Entity("DataAccessLayer.Entities.TracingOrder", b =>
+                {
+                    b.HasOne("DataAccessLayer.Entities.Order", "Order")
+                        .WithMany("TracingOrders")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("DataAccessLayer.Entities.Cart", b =>
                 {
                     b.Navigation("CartDetails");
                 });
 
-            modelBuilder.Entity("DataAccessLayer.Entities.Category", b =>
+            modelBuilder.Entity("DataAccessLayer.Entities.Categories", b =>
                 {
                     b.Navigation("Products");
                 });
@@ -309,6 +355,8 @@ namespace DataAccessLayer.Migrations
             modelBuilder.Entity("DataAccessLayer.Entities.Order", b =>
                 {
                     b.Navigation("OrderDetails");
+
+                    b.Navigation("TracingOrders");
                 });
 
             modelBuilder.Entity("DataAccessLayer.Entities.Product", b =>

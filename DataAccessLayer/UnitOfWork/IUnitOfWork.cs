@@ -15,6 +15,7 @@ namespace DataAccessLayer.UnitOfWork
         IOrderDetailRepository OrderDetails { get; }
         ICartRepository Carts { get; }
         ICartDetailRepository CartDetails { get; }
+        ITrackingOrderRepository TrackingOrders { get; }
         Task<int> SaveChangesAsync();
     }
 }

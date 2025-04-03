@@ -1,8 +1,10 @@
 ﻿using BLL.DTOs;
+using BLL.Hubs;
 using BLL.Services.IServices;
 using DataAccessLayer.Entities;
 using DataAccessLayer.Enum;
 using DataAccessLayer.UnitOfWork;
+using Microsoft.AspNetCore.SignalR;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,11 +17,17 @@ namespace BLL.Services
     public class OrderService : IOrderService
     {
         private readonly IUnitOfWork _unitOfWork;
-
-        public OrderService(IUnitOfWork unitOfWork)
+        private readonly ITrackingOrderService _trackingOrderService;
+        private readonly ICartService _cartService;
+        private readonly IHubContext<OrderHub> _hubContext;
+        public OrderService(IUnitOfWork unitOfWork, ITrackingOrderService trackingOrderService, ICartService cartService, IHubContext<OrderHub> hubContext)
         {
             _unitOfWork = unitOfWork;
+            _trackingOrderService = trackingOrderService;
+            _cartService = cartService;
+            _hubContext = hubContext;
         }
+
         public async Task<int> GetTotalOrdersAsync()
         {
             var orders = await _unitOfWork.Orders.GetAllAsync();
@@ -39,19 +47,19 @@ namespace BLL.Services
            
             var (orders, totalCount) = await _unitOfWork.Orders.GetPagedAsync(pageNumber, pageSize, predicate, orderBy);
 
-            // Trả về danh sách đơn hàng
+           
             return orders.ToList();
         }
         public async Task<List<Order>> GetPagedOrdersAsync(int pageNumber, int pageSize, string status)
         {
-            // Chuyển đổi chuỗi status thành OrderStatus enum nếu có thể
+            
             OrderStatus? orderStatus = null;
             if (status != "ALL" && Enum.TryParse(status, true, out OrderStatus parsedStatus))
             {
                 orderStatus = parsedStatus;
             }
 
-            // Lấy tất cả đơn hàng nếu trạng thái là "ALL", hoặc chỉ lấy các đơn hàng có trạng thái tương ứng
+         
             var predicate = orderStatus == null
                 ? (Expression<Func<Order, bool>>)(_ => true)
                 : (Expression<Func<Order, bool>>)(o => o.Status == orderStatus);
@@ -75,11 +83,22 @@ namespace BLL.Services
             };
 
             order.Status = DataAccessLayer.Enum.OrderStatus.Spending;
-            // Thêm Order vào cơ sở dữ liệu
+          
             await _unitOfWork.Orders.AddAsync(order);
-            await _unitOfWork.SaveChangesAsync();
 
-            // Trả về OrderId sau khi thêm thành công
+            await _unitOfWork.SaveChangesAsync();
+            var trackingOrderDto = new TrackingOrderDTO
+            {
+                OrderId = order.OrderId,
+                MemberId = order.MemberId,
+                Status = order.Status,
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now,
+            };
+
+            
+            await _trackingOrderService.AddTracingOrderAsync(trackingOrderDto);
+            await _cartService.DeleteCartAndItemsByUserIdAsync(dto.MemberId);
             return order.OrderId;
         }
 
@@ -133,6 +152,9 @@ namespace BLL.Services
             order.Status = newStatus;
             await _unitOfWork.Orders.UpdateAsync(order);
             await _unitOfWork.SaveChangesAsync();
+
+            await _trackingOrderService.UpdateTrackingOrderAsync(orderId, newStatus);
+            await _hubContext.Clients.All.SendAsync("ReceiveStatusChange", orderId, newStatus.ToString());
         }
 
         public async Task ApproveOrderAsync(int orderId)
@@ -154,6 +176,81 @@ namespace BLL.Services
         {
             await UpdateOrderStatusAsync(orderId, OrderStatus.Shipped);
         }
+        public async Task<List<Order>> GetPagedOrdersStaffAsync(int pageNumber, int pageSize, string status)
+        {
+            var validStatuses = new List<OrderStatus>
+    {
+        OrderStatus.Spending,
+        OrderStatus.Approve,
+        OrderStatus.Reject
+    };
+
+            Expression<Func<Order, bool>> predicate;
+
+            if (status == "ALL")
+            {
+                // Chỉ lấy các trạng thái trong danh sách hợp lệ (Spending, Approve, Reject)
+                predicate = o => validStatuses.Contains(o.Status);
+            }
+            else if (Enum.TryParse<OrderStatus>(status, true, out var parsedStatus) && validStatuses.Contains(parsedStatus))
+            {
+                predicate = o => o.Status == parsedStatus;
+            }
+            else
+            {
+                // Nếu không hợp lệ hoặc không nằm trong validStatuses, trả về danh sách rỗng
+                return new List<Order>();
+            }
+
+            var (orders, totalCount) = await _unitOfWork.Orders.GetPagedAsync(
+                pageNumber,
+                pageSize,
+                predicate,
+                query => query.OrderByDescending(o => o.OrderDate)
+            );
+
+            return orders.ToList();
+        }
+
+        public async Task<List<Order>> GetPagedOrdersShipperAsync(int pageNumber, int pageSize, string status)
+        {
+            
+            var validStatuses = new List<OrderStatus>
+    {
+        OrderStatus.Approve,
+        OrderStatus.Shipping,
+        OrderStatus.Shipped
+    };
+
+            
+            Expression<Func<Order, bool>> predicate;
+
+            if (status == "ALL")
+            {
+                predicate = o => validStatuses.Contains(o.Status);
+            }
+            else if (Enum.TryParse<OrderStatus>(status, true, out var parsedStatus) && validStatuses.Contains(parsedStatus))
+            {
+                predicate = o => o.Status == parsedStatus;
+            }
+            else
+            {
+                
+                return new List<Order>();
+            }
+
+            var (orders, totalCount) = await _unitOfWork.Orders.GetPagedAsync(
+                pageNumber,
+                pageSize,
+                predicate,
+                query => query.OrderByDescending(o => o.OrderDate)
+            );
+
+            return orders.ToList();
+        }
+
+
+
 
     }
 }

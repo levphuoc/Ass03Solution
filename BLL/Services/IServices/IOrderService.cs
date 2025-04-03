@@ -20,7 +20,8 @@ namespace BLL.Services.IServices
         Task DeleteOrderAsync(int orderId);
         Task ApproveOrderAsync(int orderId);
 
-
+        Task<List<Order>> GetPagedOrdersStaffAsync(int pageNumber, int pageSize, string status);
+        Task<List<Order>> GetPagedOrdersShipperAsync(int pageNumber, int pageSize, string status);
         Task RejectOrderAsync(int orderId);
 
 
