@@ -113,12 +113,42 @@
                 </div>
             }
         </div>
+        
+        <!-- Pagination Controls -->
+        @if (totalPages > 1)
+        {
+            <div class="d-flex justify-content-center mt-4">
+                <nav>
+                    <ul class="pagination">
+                        <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                            <a class="page-link" href="javascript:void(0)" @onclick="() => GoToPage(currentPage - 1)">Previous</a>
+                        </li>
+                        
+                        @for (int i = 1; i <= totalPages; i++)
+                        {
+                            var pageNumber = i;
+                            <li class="page-item @(currentPage == pageNumber ? "active" : "")">
+                                <a class="page-link" href="javascript:void(0)" @onclick="() => GoToPage(pageNumber)">@pageNumber</a>
+                            </li>
+                        }
+                        
+                        <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                            <a class="page-link" href="javascript:void(0)" @onclick="() => GoToPage(currentPage + 1)">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        }
     }
 </div>
 
 @code {
     private DataAccessLayer.Entities.Member? currentUser;
     private IEnumerable<ProductDTO>? products;
+    private int totalCount;
+    private int currentPage = 1;
+    private int pageSize = 3;
+    private int totalPages => (int)Math.Ceiling((double)totalCount / pageSize);
     
     // Biến tìm kiếm
     private string? searchProductName;
@@ -145,10 +175,13 @@
                     searchMaxPrice, 
                     searchCategoryName
                 );
+                totalCount = products.Count();
             }
             else
             {
-                products = await ProductService.GetAllProductsAsync();
+                var result = await ProductService.GetPagedProductsAsync(currentPage, pageSize);
+                products = result.Products;
+                totalCount = result.TotalCount;
             }
         }
         catch (Exception ex)
@@ -160,6 +193,7 @@
     private async Task SearchProducts()
     {
         isSearching = true;
+        currentPage = 1;
         await LoadProducts();
     }
     
@@ -170,6 +204,16 @@
         searchMaxPrice = null;
         searchCategoryName = null;
         isSearching = false;
+        currentPage = 1;
+        await LoadProducts();
+    }
+    
+    private async Task GoToPage(int page)
+    {
+        if (page < 1 || page > totalPages)
+            return;
+            
+        currentPage = page;
         await LoadProducts();
     }
     

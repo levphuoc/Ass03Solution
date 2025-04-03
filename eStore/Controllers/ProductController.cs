@@ -26,6 +26,23 @@ namespace eStore.Controllers
             return Ok(products);
         }
 
+        // GET: api/Product/paged?pageNumber=1&pageSize=3
+        [HttpGet("paged")]
+        public async Task<ActionResult<IEnumerable<ProductDTO>>> GetPagedProducts(
+            [FromQuery] int pageNumber = 1, 
+            [FromQuery] int pageSize = 3)
+        {
+            var (products, totalCount) = await _productService.GetPagedProductsAsync(pageNumber, pageSize);
+            
+            // Adding pagination metadata in response headers
+            Response.Headers.Add("X-Total-Count", totalCount.ToString());
+            Response.Headers.Add("X-Page-Number", pageNumber.ToString());
+            Response.Headers.Add("X-Page-Size", pageSize.ToString());
+            Response.Headers.Add("X-Total-Pages", Math.Ceiling((double)totalCount / pageSize).ToString());
+            
+            return Ok(products);
+        }
+
         // GET: api/Product/5
         [HttpGet("{id}")]
         public async Task<ActionResult<ProductDTO>> GetProduct(int id)

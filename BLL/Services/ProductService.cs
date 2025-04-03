@@ -172,5 +172,26 @@ namespace BLL.Services
             
             return query.ToList();
         }
+
+        public async Task<(IEnumerable<ProductDTO> Products, int TotalCount)> GetPagedProductsAsync(int pageNumber, int pageSize)
+        {
+            // Sử dụng repository để lấy dữ liệu đã phân trang
+            var (pagedProducts, totalCount) = await _unitOfWork.Products.GetPagedAsync(
+                pageNumber,
+                pageSize
+            );
+            
+            // Lấy tất cả danh mục
+            var categories = await _unitOfWork.Categories.GetAllAsync();
+            
+            // Map từ Product sang ProductDTO và thêm CategoryName
+            var productDTOs = pagedProducts.Select(p => {
+                var dto = _mapper.Map<ProductDTO>(p);
+                dto.CategoryName = categories.FirstOrDefault(c => c.CategoryId == p.CategoryId)?.CategoryName ?? "Unknown";
+                return dto;
+            }).ToList();
+            
+            return (productDTOs, totalCount);
+        }
     }
 }
