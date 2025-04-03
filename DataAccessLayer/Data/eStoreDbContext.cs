@@ -22,6 +22,7 @@ namespace DataAccessLayer.Data
         public DbSet<CartItem> CartItems { get; set; }
         public DbSet<Categories> Categories { get; set; }
         public DbSet<TracingOrder> TracingOrders { get; set; }
+        public DbSet<CartDetail> CartDetails { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

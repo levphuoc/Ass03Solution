@@ -1,4 +1,4 @@
-﻿using AutoMapper.Execution;
+﻿
 using BLL.Hubs;
 using BLL.Services.IServices;
 using DataAccessLayer.Entities;
@@ -22,16 +22,26 @@ namespace BLL.Services
     public class CartService : ICartService
     {
         private readonly IUnitOfWork _unitOfWork;
-      
-        private readonly ILogger<CartService> _logger; 
-
+        private readonly IJSRuntime _jsRuntime;
+        private readonly IProductService _productService;
+        private readonly ILogger<CartService> _logger;
+        private const string CartKey = "estore_cart_";
         private readonly ICartDetailRepository _cartDetailRepository;
         private readonly ICartRepository _cartRepository;
-        public CartService(ICartDetailRepository cartDetailRepository, ICartRepository cartRepository)
+
+        public CartService(IJSRuntime jsRuntime, IProductService productService, IUnitOfWork unitOfWork, ICartDetailRepository cartDetailRepository, ICartRepository cartRepository)
         {
+            _jsRuntime = jsRuntime;
+            _productService = productService;
+            _unitOfWork = unitOfWork;
             _cartDetailRepository = cartDetailRepository;
             _cartRepository = cartRepository;
         }
+
+        
+
+       
+        
 
         public async Task<List<CartDetail>> GetAllCartDetailById(int userId)
         {
@@ -42,25 +52,6 @@ namespace BLL.Services
         {
 
             await _cartRepository.DeleteCartAndItemsByMemberIdAsync(MemberId);
-        }
-        }
-
-
-
-
-
-    
-}
-        private readonly IJSRuntime _jsRuntime;
-        private readonly IProductService _productService;
-        private readonly IUnitOfWork _unitOfWork;
-        private const string CartKey = "estore_cart_";
-
-        public CartService(IJSRuntime jsRuntime, IProductService productService, IUnitOfWork unitOfWork)
-        {
-            _jsRuntime = jsRuntime;
-            _productService = productService;
-            _unitOfWork = unitOfWork;
         }
 
         private string GetCartKey(int memberId) => $"{CartKey}{memberId}";

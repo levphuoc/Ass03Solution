@@ -101,7 +101,6 @@ builder.Services.AddAuthorization(options =>
 
 // SignalR
 builder.Services.AddSignalR();
-
 // -------------------- App Build --------------------
 var app = builder.Build();
 

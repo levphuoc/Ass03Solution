@@ -12,6 +12,7 @@ namespace DataAccessLayer.Enum
         Spending = 2,
         Approve = 3,
         Shipping = 4,
-        Shipped = 5
+        Shipped = 5,
+        Cancel = 6,
     }
 }
