@@ -212,5 +212,105 @@ namespace BLL.Services
             
             return (productDTOs, totalCount);
         }
+        
+        public async Task<bool> DecreaseStockAsync(int productId, int quantity)
+        {
+            try
+            {
+                // Get the product
+                var product = await _unitOfWork.Products.GetByIdAsync(productId);
+                if (product == null)
+                {
+                    Console.WriteLine($"Product with ID {productId} not found when decreasing stock");
+                    return false;
+                }
+                
+                // Check if there's enough stock
+                if (product.UnitsInStock < quantity)
+                {
+                    Console.WriteLine($"Not enough stock for product {productId}. Available: {product.UnitsInStock}, Requested: {quantity}");
+                    return false;
+                }
+                
+                // Decrease the stock
+                product.UnitsInStock -= quantity;
+                
+                // Update the product
+                await _unitOfWork.Products.UpdateAsync(product);
+                await _unitOfWork.SaveChangesAsync();
+                
+                // Notify clients about the stock update
+                var updatedProductDto = _mapper.Map<ProductDTO>(product);
+                var category = await _unitOfWork.Categories.GetByIdAsync(product.CategoryId);
+                if (category != null)
+                {
+                    updatedProductDto.CategoryName = category.CategoryName;
+                }
+                await _productHub.Clients.All.SendAsync("ProductUpdated", updatedProductDto);
+                
+                Console.WriteLine($"Stock decreased for product {productId}. New stock: {product.UnitsInStock}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error decreasing stock for product {productId}: {ex.Message}");
+                return false;
+            }
+        }
+        
+        public async Task<bool> DecreaseStockForMultipleProductsAsync(Dictionary<int, int> productQuantities)
+        {
+            if (productQuantities == null || !productQuantities.Any())
+                return true;  // Nothing to process
+                
+            try
+            {
+                // Check all products first to make sure we have enough stock
+                foreach (var item in productQuantities)
+                {
+                    var productId = item.Key;
+                    var quantity = item.Value;
+                    
+                    var product = await _unitOfWork.Products.GetByIdAsync(productId);
+                    if (product == null)
+                    {
+                        Console.WriteLine($"Product with ID {productId} not found when checking stock");
+                        return false;
+                    }
+                    
+                    if (product.UnitsInStock < quantity)
+                    {
+                        Console.WriteLine($"Not enough stock for product {productId}. Available: {product.UnitsInStock}, Requested: {quantity}");
+                        return false;
+                    }
+                }
+                
+                // If all checks pass, decrease stock for all products
+                foreach (var item in productQuantities)
+                {
+                    var productId = item.Key;
+                    var quantity = item.Value;
+                    
+                    var product = await _unitOfWork.Products.GetByIdAsync(productId);
+                    product.UnitsInStock -= quantity;
+                    await _unitOfWork.Products.UpdateAsync(product);
+                    
+                    Console.WriteLine($"Stock decreased for product {productId}. New stock: {product.UnitsInStock}");
+                }
+                
+                // Save all changes in a single transaction
+                await _unitOfWork.SaveChangesAsync();
+                
+                // Notify clients about updates
+                await _productHub.Clients.All.SendAsync("ProductsUpdated");
+                
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error decreasing stock for multiple products: {ex.Message}");
+                return false;
+            }
+        }
     }
 }

@@ -41,6 +41,15 @@
     }
     else
     {
+        @if (!string.IsNullOrEmpty(cart.ErrorMessage))
+        {
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                @cart.ErrorMessage
+                <button type="button" class="btn-close" @onclick="ClearErrorMessage"></button>
+            </div>
+        }
+        
         <div class="card mb-4">
             <div class="card-header bg-primary text-white">
                 <h3 class="mb-0">Items in Your Cart</h3>
@@ -280,5 +289,11 @@
         return originalUrl;
     }
 
-    
+    private void ClearErrorMessage()
+    {
+        if (cart != null)
+        {
+            cart.ErrorMessage = null;
+        }
+    }
 } 

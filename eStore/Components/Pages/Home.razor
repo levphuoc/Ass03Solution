@@ -104,12 +104,30 @@
                                 <strong>Price:</strong> @($"{product.UnitPrice:C}")
                             </p>
                             <p class="card-text">
-                                <strong>In Stock:</strong> @product.UnitsInStock
+                                @if (product.UnitsInStock > 0)
+                                {
+                                    <span class="text-success"><strong>In Stock:</strong> @product.UnitsInStock units available</span>
+                                }
+                                else
+                                {
+                                    <span class="text-danger"><strong>Out of Stock</strong></span>
+                                }
                             </p>
                         </div>
                         <div class="card-footer d-grid gap-2">
                             <button class="btn btn-primary mb-1" @onclick="() => NavigateToProductDetail(product.ProductId)">View Details</button>
-                            <button class="btn btn-success" @onclick="() => AddToCart(product)">Add to Cart</button>
+                            @if (product.UnitsInStock > 0)
+                            {
+                                <button class="btn btn-success" @onclick="() => AddToCart(product)">
+                                    <i class="bi bi-cart-plus"></i> Add to Cart
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-secondary" disabled>
+                                    <i class="bi bi-x-circle"></i> Out of Stock
+                                </button>
+                            }
                         </div>
                     </div>
                 </div>
@@ -231,11 +249,25 @@
         
         try
         {
+            // Check if product is in stock before adding
+            if (product.UnitsInStock <= 0)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Sorry, this product is out of stock.");
+                return;
+            }
+            
             // Thêm sản phẩm vào giỏ hàng với số lượng là 1
             var cart = await CartService.AddToCartAsync(
                 currentUser.MemberId, 
                 product.ProductId, 
                 1);
+                
+            if (!string.IsNullOrEmpty(cart.ErrorMessage))
+            {
+                // Display error message from cart service
+                await JSRuntime.InvokeVoidAsync("alert", cart.ErrorMessage);
+                return;
+            }
             
             // Hiển thị thông báo đã thêm vào giỏ hàng
             await JSRuntime.InvokeVoidAsync("alert", $"{product.ProductName} has been added to your cart!");
