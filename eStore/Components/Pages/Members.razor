@@ -34,6 +34,25 @@ else
     }
     else
     {
+        <div class="row align-items-end mb-3">
+            <div class="col-md-4">
+                <label class="form-label">Email:</label>
+                <InputText @bind-Value="searchEmail" class="form-control" placeholder="Enter email..." />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Company Name:</label>
+                <InputText @bind-Value="searchCompanyName" class="form-control" placeholder="Enter company name..." />
+            </div>
+            <div class="col-md-4 d-flex gap-2">
+                <button class="btn btn-primary w-100 d-flex align-items-center justify-content-center" @onclick="OnSearchAsync">
+                    <i class="fas fa-search me-2"></i> Search
+                </button>
+                <button class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-center" @onclick="ResetSearch">
+                    <i class="fas fa-redo me-2"></i> Reset
+                </button>
+            </div>
+        </div>
+
         <table class="table">
             <thead>
                 <tr>
@@ -188,6 +207,8 @@ else
     private bool adminDeleteConfirmed = false;
     private string errorMessage;
     private bool isLoading = true;
+    private string searchEmail = string.Empty;
+    private string searchCompanyName = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -329,5 +350,31 @@ else
     {
         isEditing = false;
         StateHasChanged();
+    }
+
+    private async Task OnSearchAsync()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+            members = (await MemberService.SearchMembersAsync(searchEmail, searchCompanyName)).ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Search failed: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ResetSearch()
+    {
+        searchEmail = string.Empty;
+        searchCompanyName = string.Empty;
+        await LoadMembers();
     }
 }

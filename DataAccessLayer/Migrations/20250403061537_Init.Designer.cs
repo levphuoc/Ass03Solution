@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DataAccessLayer.Migrations
 {
     [DbContext(typeof(EStoreDbContext))]
-    [Migration("20250403041729_AddfieldPicture")]
-    partial class AddfieldPicture
+    [Migration("20250403061537_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -216,6 +216,7 @@ namespace DataAccessLayer.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("UrlImage")
+                        .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
