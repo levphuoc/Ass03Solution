@@ -13,7 +13,7 @@ namespace BLL.Services
         Task LogoutAsync();
         Task<Member?> GetCurrentUserAsync();
         bool IsInRole(string role);
-        Task<bool> UpdateProfileAsync(string companyName, string city, string email, string password);
+        Task<bool> UpdateProfileAsync(string companyName, string city, string country, string email, string password);
     }
 
     public class AuthService : IAuthService
@@ -105,7 +105,7 @@ namespace BLL.Services
             return _httpContextAccessor.HttpContext?.User?.IsInRole(role) ?? false;
         }
 
-        public async Task<bool> UpdateProfileAsync(string companyName, string city, string email, string password)
+        public async Task<bool> UpdateProfileAsync(string companyName, string city, string country, string email, string password)
         {
             try
             {
@@ -113,12 +113,17 @@ namespace BLL.Services
                 var currentUser = await GetCurrentUserAsync();
                 if (currentUser == null)
                 {
+                    Console.WriteLine("UpdateProfileAsync: Current user not found");
                     return false;
                 }
+
+                // Store the original email for comparison
+                var originalEmail = currentUser.Email;
 
                 // Update user data
                 currentUser.CompanyName = companyName;
                 currentUser.City = city;
+                currentUser.Country = country;
                 currentUser.Email = email;
                 
                 // Only update password if provided
@@ -130,58 +135,55 @@ namespace BLL.Services
                 // Save changes to database
                 await _memberRepository.UpdateAsync(currentUser);
 
-                // Update authentication cookie if email was changed
-                var oldEmail = _httpContextAccessor.HttpContext?.User?.Identity?.Name;
-                if (!string.IsNullOrEmpty(oldEmail) && oldEmail != email)
+                // Always update the authentication cookie to reflect changes
+                await _httpContextAccessor.HttpContext!.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+                // Create new claims
+                var claims = new List<Claim>
                 {
-                    // Sign out first
-                    await _httpContextAccessor.HttpContext!.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                    new Claim(ClaimTypes.Name, currentUser.Email),
+                    new Claim(ClaimTypes.NameIdentifier, currentUser.MemberId.ToString()),
+                    new Claim("CompanyName", currentUser.CompanyName),
+                    new Claim(ClaimTypes.Role, currentUser.Role)
+                };
 
-                    // Create new claims
-                    var claims = new List<Claim>
-                    {
-                        new Claim(ClaimTypes.Name, currentUser.Email),
-                        new Claim(ClaimTypes.NameIdentifier, currentUser.MemberId.ToString()),
-                        new Claim("CompanyName", currentUser.CompanyName),
-                        new Claim(ClaimTypes.Role, currentUser.Role)
-                    };
-
-                    switch (currentUser.Role)
-                    {
-                        case "Admin":
-                            claims.Add(new Claim(ClaimTypes.Role, "Staff"));
-                            claims.Add(new Claim(ClaimTypes.Role, "Deliverer"));
-                            claims.Add(new Claim(ClaimTypes.Role, "User"));
-                            break;
-                        case "Staff":
-                            claims.Add(new Claim(ClaimTypes.Role, "Deliverer"));
-                            claims.Add(new Claim(ClaimTypes.Role, "User"));
-                            break;
-                        case "Deliverer":
-                            claims.Add(new Claim(ClaimTypes.Role, "User"));
-                            break;
-                    }
-
-                    // Sign in with new claims
-                    var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-                    var authProperties = new AuthenticationProperties
-                    {
-                        IsPersistent = true,
-                        ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7)
-                    };
-
-                    await _httpContextAccessor.HttpContext!.SignInAsync(
-                        CookieAuthenticationDefaults.AuthenticationScheme,
-                        new ClaimsPrincipal(claimsIdentity),
-                        authProperties);
+                switch (currentUser.Role)
+                {
+                    case "Admin":
+                        claims.Add(new Claim(ClaimTypes.Role, "Staff"));
+                        claims.Add(new Claim(ClaimTypes.Role, "Deliverer"));
+                        claims.Add(new Claim(ClaimTypes.Role, "User"));
+                        break;
+                    case "Staff":
+                        claims.Add(new Claim(ClaimTypes.Role, "Deliverer"));
+                        claims.Add(new Claim(ClaimTypes.Role, "User"));
+                        break;
+                    case "Deliverer":
+                        claims.Add(new Claim(ClaimTypes.Role, "User"));
+                        break;
                 }
 
+                // Sign in with new claims
+                var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                var authProperties = new AuthenticationProperties
+                {
+                    IsPersistent = true,
+                    ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7)
+                };
+
+                await _httpContextAccessor.HttpContext!.SignInAsync(
+                    CookieAuthenticationDefaults.AuthenticationScheme,
+                    new ClaimsPrincipal(claimsIdentity),
+                    authProperties);
+
+                Console.WriteLine($"Profile updated successfully. Email changed from {originalEmail} to {email}");
                 return true;
             }
             catch (Exception ex)
             {
                 // Log the exception
                 Console.WriteLine($"Error in UpdateProfileAsync: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 return false;
             }
         }
