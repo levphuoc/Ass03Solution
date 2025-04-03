@@ -138,23 +138,39 @@ namespace BLL.Services
                     return false;
                 }
 
+                // Validate email format
+                if (!IsValidEmail(email))
+                {
+                    throw new ArgumentException("Invalid email format. Please provide a valid Gmail address.");
+                }
+
+                // Only check email uniqueness if the email is being changed
+                if (!string.Equals(member.Email, email, StringComparison.OrdinalIgnoreCase))
+                {
+                    await CheckEmailUniqueness(email);
+                }
+
                 // Update the fields
                 member.CompanyName = companyName;
                 member.City = city;
                 member.Email = email;
-                
-                // Only update password if it's provided
+
+                // Validate password length if provided
                 if (!string.IsNullOrWhiteSpace(password))
                 {
+                    if (password.Length < 6)
+                    {
+                        throw new ArgumentException("Password must be at least 6 characters long.");
+                    }
                     member.Password = password;
                 }
 
                 // Save changes
                 await _memberRepository.UpdateAsync(member);
-                
+
                 // Notify clients if needed
-                // await _hubContext.Clients.All.SendAsync("ReceiveUpdate");
-                
+                await _hubContext.Clients.All.SendAsync("ReceiveUpdate");
+
                 return true;
             }
             catch (Exception)

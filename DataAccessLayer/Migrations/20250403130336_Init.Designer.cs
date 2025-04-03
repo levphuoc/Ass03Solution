@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DataAccessLayer.Migrations
 {
     [DbContext(typeof(EStoreDbContext))]
-    [Migration("20250403084434_cartandcartdetail_relationship")]
-    partial class cartandcartdetail_relationship
+    [Migration("20250403130336_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
