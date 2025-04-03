@@ -6,6 +6,7 @@
 @inject NavigationManager NavigationManager
 @using DataAccessLayer.Entities
 @rendermode InteractiveServer
+@using Microsoft.AspNetCore.SignalR.Client
 
 @if (currentUser == null)
 {
@@ -209,6 +210,7 @@ else
     private bool isLoading = true;
     private string searchEmail = string.Empty;
     private string searchCompanyName = string.Empty;
+    private HubConnection hubConnection;
 
     protected override async Task OnInitializedAsync()
     {
@@ -216,6 +218,7 @@ else
         if (currentUser != null && (AuthService.IsInRole("Admin") || AuthService.IsInRole("Staff")))
         {
             await LoadMembers();
+            await SetupSignalR();
         }
     }
 
@@ -314,6 +317,7 @@ else
             }
 
             await LoadMembers();
+            await SetupSignalR();
             isEditing = false;
         }
         catch (Exception ex)
@@ -376,5 +380,51 @@ else
         searchEmail = string.Empty;
         searchCompanyName = string.Empty;
         await LoadMembers();
+    }
+
+    private async Task SetupSignalR()
+    {
+        try
+        {
+            hubConnection = new HubConnectionBuilder()
+                .WithUrl(NavigationManager.ToAbsoluteUri("/memberHub"))
+                .WithAutomaticReconnect()
+                .Build();
+
+            hubConnection.On("ReceiveUpdate", async () =>
+            {
+                await InvokeAsync(async () =>
+                {
+                    await LoadMembers();
+                    StateHasChanged();
+                });
+            });
+
+            hubConnection.Reconnected += async (connectionId) =>
+            {
+                await InvokeAsync(StateHasChanged);
+            };
+
+            hubConnection.Closed += async (error) =>
+            {
+                await InvokeAsync(StateHasChanged);
+                await Task.Delay(new Random().Next(0, 5) * 1000);
+                await hubConnection.StartAsync();
+            };
+
+            await hubConnection.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"SignalR Connection Error: {ex.Message}");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection != null)
+        {
+            await hubConnection.DisposeAsync();
+        }
     }
 }

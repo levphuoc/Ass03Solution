@@ -153,7 +153,7 @@ namespace BLL.Services
                 await _memberRepository.UpdateAsync(member);
                 
                 // Notify clients if needed
-                // await _hubContext.Clients.All.SendAsync("ReceiveUpdate");
+                await _hubContext.Clients.All.SendAsync("ReceiveUpdate");
                 
                 return true;
             }
