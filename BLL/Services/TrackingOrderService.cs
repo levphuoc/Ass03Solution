@@ -21,10 +21,10 @@ namespace BLL.Services
                 _mapper = mapper;
             }
 
-            public async Task AddTracingOrderAsync(TrackingOrderDTO tracingOrderDto)
+            public async Task AddTracingOrderAsync(TracingOrder tracingOrderDto)
             {
-                var tracingOrder = _mapper.Map<TracingOrder>(tracingOrderDto);
-                await _unitOfWork.TrackingOrders.AddAsync(tracingOrder);
+                
+                await _unitOfWork.TrackingOrders.AddAsync(tracingOrderDto);
                 await _unitOfWork.SaveChangesAsync();
             }
 

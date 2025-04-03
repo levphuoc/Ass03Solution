@@ -7,8 +7,8 @@ using System.Threading.Tasks;
 
 namespace DataAccessLayer.Repository.Interfaces
 {
-    public interface ICartDetailRepository : IRepository<CartDetail>
+    public interface ICartDetailRepository : IRepository<CartItem>
     {
-        Task<List<CartDetail>> GetAllCartDetailById(int userId);
+       
     }
 }

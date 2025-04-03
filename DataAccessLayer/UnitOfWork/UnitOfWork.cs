@@ -36,8 +36,8 @@ namespace DataAccessLayer.UnitOfWork
        public ICartDetailRepository CartDetails { get; private set; }
         public ITrackingOrderRepository TrackingOrders { get; private set; }
         public ICategoryRepository Categories { get; private set; }
-        
 
+        
         public async Task<int> SaveChangesAsync()
         {
             return await _context.SaveChangesAsync();

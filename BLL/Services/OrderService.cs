@@ -87,7 +87,7 @@ namespace BLL.Services
             await _unitOfWork.Orders.AddAsync(order);
 
             await _unitOfWork.SaveChangesAsync();
-            var trackingOrderDto = new TrackingOrderDTO
+            var trackingOrderDto = new TracingOrder
             {
                 OrderId = order.OrderId,
                 MemberId = order.MemberId,

@@ -229,7 +229,11 @@
             }
             InvokeAsync(() => StateHasChanged());
         }
-        
+        else
+        {
+            ErrorMessage = "Không có item nào";
+        }
+
     }
 
     private void OnProductChanged(ChangeEventArgs e, OrderItemDTO item)
@@ -296,6 +300,7 @@
                     Quantity = item.Quantity,
                     UnitPrice = item.UnitPrice,
                     Discount = item.Discount
+
                 }).ToList();
             await OrderDetailService.AddOrderDetailsAsync(orderDetails);
             IsSuccess = true;

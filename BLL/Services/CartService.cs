@@ -43,9 +43,9 @@ namespace BLL.Services
        
         
 
-        public async Task<List<CartDetail>> GetAllCartDetailById(int userId)
+        public async Task<List<CartItem>> GetAllCartDetailById(int userId)
         {
-            return await _cartDetailRepository.GetAllCartDetailById(userId);
+            return await _cartRepository.GetCartItemsByCartIdAsync(userId);
         }
 
         public async Task DeleteCartAndItemsByUserIdAsync(int MemberId)

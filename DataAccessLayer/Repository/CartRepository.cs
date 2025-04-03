@@ -16,31 +16,33 @@ namespace DataAccessLayer.Repository
 
         public CartRepository(EStoreDbContext context) : base(context) { }
 
-        public async Task<List<CartDetail>> GetCartItemsByCartIdAsync(int userId)
+        public async Task<List<CartItem>> GetCartItemsByCartIdAsync(int userId)
         {
             
-            var cart = await _context.Carts.FirstOrDefaultAsync(n => n.MemberId == userId);
+            var cart = await _context.Carts.AsNoTracking().FirstOrDefaultAsync(n => n.MemberId == userId);
 
            
             if (cart == null)
             {
                
-                return new List<CartDetail>(); 
+                return new List<CartItem>(); 
             }
 
-            var cartDetails = await _context.CartDetails
+            var cartDetails = await _context.CartItems
                                             .Where(ci => ci.CartId == cart.CartId)
                                             .Include(ci => ci.Product)
+                                             .AsNoTracking()
                                             .ToListAsync();
 
             if (cartDetails == null || !cartDetails.Any()) 
             {
                
-                return new List<CartDetail>();
+                return new List<CartItem>();
             }
 
             return cartDetails; 
         }
+       
         public async Task DeleteCartAndItemsByMemberIdAsync(int memberId)
         {
             
@@ -70,10 +72,6 @@ namespace DataAccessLayer.Repository
             await _context.SaveChangesAsync();
 
         }
-
-
-
-    
 
 
         public async Task<Cart> GetCartWithItemsByMemberIdAsync(int memberId)
@@ -200,5 +198,8 @@ namespace DataAccessLayer.Repository
             await _context.SaveChangesAsync();
             return true;
         }
+
+
+        
     }
 } 

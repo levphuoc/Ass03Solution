@@ -4,15 +4,14 @@ using DataAccessLayer.Data;
 using DataAccessLayer.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using BLL.Hubs;
-using DataAccessLayer.Repository.Interfaces;
-using DataAccessLayer.Repository;
-using DataAccessLayer.Entities;
+
 using Microsoft.AspNetCore.Authentication.Cookies;
 using eStore;
-using BLL.Mappings;
+
 using eStore.Components;
 using Microsoft.AspNetCore.Components;
 using System.Security.Claims;
+using BLL.Mapping;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,6 +38,7 @@ builder.Services.AddHttpClient();
 
 // Add controller support
 builder.Services.AddApplicationServices();
+
 // Change from Scoped to Transient to prevent concurrent access issues
 builder.Services.AddDbContext<EStoreDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))

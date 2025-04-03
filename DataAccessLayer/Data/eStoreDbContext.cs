@@ -28,8 +28,10 @@ namespace DataAccessLayer.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // Cấu hình độ chính xác cho kiểu decimal
-            modelBuilder.Entity<Order>()
+            modelBuilder.Entity<CartDetail>().HasNoKey();
+        
+        // Cấu hình độ chính xác cho kiểu decimal
+        modelBuilder.Entity<Order>()
                 .Property(o => o.Freight)
                 .HasPrecision(18, 2);
 

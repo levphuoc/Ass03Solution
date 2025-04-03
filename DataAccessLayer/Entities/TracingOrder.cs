@@ -19,8 +19,8 @@ namespace DataAccessLayer.Entities
         [Required]
         public int MemberId { get; set; }
 
-       public string MemberName { get; set; }
-       
+        public string MemberName { get; set; } = string.Empty;
+
 
         [ForeignKey("Order")]
         public int OrderId { get; set; }

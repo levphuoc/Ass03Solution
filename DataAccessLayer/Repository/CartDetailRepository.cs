@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace DataAccessLayer.Repository
 {
-    public class CartDetailRepository : GenericRepository<CartDetail>, ICartDetailRepository
+    public class CartDetailRepository : GenericRepository<CartItem>, ICartDetailRepository
     {
         private new readonly EStoreDbContext _context;
 
@@ -20,24 +20,6 @@ namespace DataAccessLayer.Repository
         }
 
         
-        public async Task<List<CartDetail>> GetAllCartDetailById(int userId)
-        {
-           
-            var cart = await _context.Carts.FirstOrDefaultAsync(c => c.MemberId == userId);
-
-            if (cart == null)
-            {
-                return new List<CartDetail>();
-                Console.WriteLine("ccc");
-            }
-
-          
-            var cartDetails = await _context.CartDetails
-                .Include(cd => cd.Product) 
-                .Where(cd => cd.CartId == cart.CartId)
-                .ToListAsync();
-
-            return cartDetails; 
-        }
+        
     }
 }
