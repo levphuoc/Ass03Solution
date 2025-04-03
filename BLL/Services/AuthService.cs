@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using DataAccessLayer.Entities;
 using DataAccessLayer.Repository.Interfaces;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 
 namespace BLL.Services
 {
