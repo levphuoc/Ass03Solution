@@ -22,6 +22,7 @@ namespace eStore
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<ICategoryRepository, CategoryRepository>();
             services.AddScoped<ICategoryService, CategoryService>();
+            services.AddScoped<ICartService, CartService>();
             
             // Register AutoMapper manually
             var mapperConfig = new MapperConfiguration(cfg =>

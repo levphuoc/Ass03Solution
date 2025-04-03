@@ -73,7 +73,9 @@ namespace DataAccessLayer.Migrations
                 {
                     CartId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    MemberId = table.Column<int>(type: "int", nullable: false)
+                    MemberId = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -111,25 +113,29 @@ namespace DataAccessLayer.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "CartDetails",
+                name: "CartItems",
                 columns: table => new
                 {
                     CartId = table.Column<int>(type: "int", nullable: false),
                     ProductId = table.Column<int>(type: "int", nullable: false),
+                    CartItemId = table.Column<int>(type: "int", nullable: false),
                     Quantity = table.Column<int>(type: "int", nullable: false),
-                    TotalPrice = table.Column<decimal>(type: "decimal(18,2)", nullable: false)
+                    UnitPrice = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    TotalPrice = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_CartDetails", x => new { x.CartId, x.ProductId });
+                    table.PrimaryKey("PK_CartItems", x => new { x.CartId, x.ProductId });
                     table.ForeignKey(
-                        name: "FK_CartDetails_Carts_CartId",
+                        name: "FK_CartItems_Carts_CartId",
                         column: x => x.CartId,
                         principalTable: "Carts",
                         principalColumn: "CartId",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_CartDetails_Products_ProductId",
+                        name: "FK_CartItems_Products_ProductId",
                         column: x => x.ProductId,
                         principalTable: "Products",
                         principalColumn: "ProductId",
@@ -185,8 +191,8 @@ namespace DataAccessLayer.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_CartDetails_ProductId",
-                table: "CartDetails",
+                name: "IX_CartItems_ProductId",
+                table: "CartItems",
                 column: "ProductId");
 
             migrationBuilder.CreateIndex(
@@ -219,7 +225,7 @@ namespace DataAccessLayer.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "CartDetails");
+                name: "CartItems");
 
             migrationBuilder.DropTable(
                 name: "OrderDetails");

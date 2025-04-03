@@ -18,5 +18,8 @@ namespace BLL.Services.IServices
         
         // Phương thức tìm kiếm sản phẩm
         Task<IEnumerable<ProductDTO>> SearchProductsAsync(string? productName, decimal? minPrice, decimal? maxPrice, string? categoryName);
+        
+        // Phương thức lấy sản phẩm theo trang
+        Task<(IEnumerable<ProductDTO> Products, int TotalCount)> GetPagedProductsAsync(int pageNumber, int pageSize);
     }
 }

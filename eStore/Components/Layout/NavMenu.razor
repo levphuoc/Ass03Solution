@@ -44,6 +44,12 @@
             </NavLink>
         </div>
 
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="cart">
+                <span class="bi bi-cart-fill" aria-hidden="true"></span> Shopping Cart
+            </NavLink>
+        </div>
+
         @if (_initialized && currentUser != null)
         {
             @if (currentRoles.Contains("Admin") || currentRoles.Contains("Staff") || currentRoles.Contains("Member"))

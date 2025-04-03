@@ -9,6 +9,7 @@
 @inject IAuthService AuthService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
+@inject ICartService CartService
 
 <PageTitle>eStore - Home</PageTitle>
 
@@ -82,7 +83,7 @@
             {
                 <div class="col">
                     <div class="card h-100">
-                        <div class="card-img-top text-center p-3">
+                        <div class="card-img-top text-center p-3" style="cursor: pointer;" @onclick="() => NavigateToProductDetail(product.ProductId)">
                             @if (!string.IsNullOrEmpty(product.UrlImage))
                             {
                                 <img src="@GetProxyImageUrl(product.UrlImage)" alt="@product.ProductName" 
@@ -94,7 +95,7 @@
                                 <img src="images/no-image.png" alt="No Image" style="max-height: 150px; object-fit: contain;" />
                             }
                         </div>
-                        <div class="card-body">
+                        <div class="card-body" style="cursor: pointer;" @onclick="() => NavigateToProductDetail(product.ProductId)">
                             <h5 class="card-title">@product.ProductName</h5>
                             <p class="card-text">
                                 <strong>Category:</strong> <span class="badge bg-primary">@product.CategoryName</span>
@@ -106,19 +107,50 @@
                                 <strong>In Stock:</strong> @product.UnitsInStock
                             </p>
                         </div>
-                        <div class="card-footer d-grid">
+                        <div class="card-footer d-grid gap-2">
+                            <button class="btn btn-primary mb-1" @onclick="() => NavigateToProductDetail(product.ProductId)">View Details</button>
                             <button class="btn btn-success" @onclick="() => AddToCart(product)">Add to Cart</button>
                         </div>
                     </div>
                 </div>
             }
         </div>
+        
+        <!-- Pagination Controls -->
+        @if (totalPages > 1)
+        {
+            <div class="d-flex justify-content-center mt-4">
+                <nav>
+                    <ul class="pagination">
+                        <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                            <a class="page-link" href="javascript:void(0)" @onclick="() => GoToPage(currentPage - 1)">Previous</a>
+                        </li>
+                        
+                        @for (int i = 1; i <= totalPages; i++)
+                        {
+                            var pageNumber = i;
+                            <li class="page-item @(currentPage == pageNumber ? "active" : "")">
+                                <a class="page-link" href="javascript:void(0)" @onclick="() => GoToPage(pageNumber)">@pageNumber</a>
+                            </li>
+                        }
+                        
+                        <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                            <a class="page-link" href="javascript:void(0)" @onclick="() => GoToPage(currentPage + 1)">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        }
     }
 </div>
 
 @code {
     private DataAccessLayer.Entities.Member? currentUser;
     private IEnumerable<ProductDTO>? products;
+    private int totalCount;
+    private int currentPage = 1;
+    private int pageSize = 3;
+    private int totalPages => (int)Math.Ceiling((double)totalCount / pageSize);
     
     // Biến tìm kiếm
     private string? searchProductName;
@@ -145,10 +177,13 @@
                     searchMaxPrice, 
                     searchCategoryName
                 );
+                totalCount = products.Count();
             }
             else
             {
-                products = await ProductService.GetAllProductsAsync();
+                var result = await ProductService.GetPagedProductsAsync(currentPage, pageSize);
+                products = result.Products;
+                totalCount = result.TotalCount;
             }
         }
         catch (Exception ex)
@@ -160,6 +195,7 @@
     private async Task SearchProducts()
     {
         isSearching = true;
+        currentPage = 1;
         await LoadProducts();
     }
     
@@ -170,6 +206,16 @@
         searchMaxPrice = null;
         searchCategoryName = null;
         isSearching = false;
+        currentPage = 1;
+        await LoadProducts();
+    }
+    
+    private async Task GoToPage(int page)
+    {
+        if (page < 1 || page > totalPages)
+            return;
+            
+        currentPage = page;
         await LoadProducts();
     }
     
@@ -183,10 +229,29 @@
             return;
         }
         
-        // Hiển thị thông báo đã thêm vào giỏ hàng
-        await JSRuntime.InvokeVoidAsync("alert", $"{product.ProductName} has been added to your cart!");
-        
-        // Ở đây bạn có thể thêm logic thực tế để thêm sản phẩm vào giỏ hàng
+        try
+        {
+            // Thêm sản phẩm vào giỏ hàng với số lượng là 1
+            var cart = await CartService.AddToCartAsync(
+                currentUser.MemberId, 
+                product.ProductId, 
+                1, 
+                currentUser.Role);
+            
+            // Hiển thị thông báo đã thêm vào giỏ hàng
+            await JSRuntime.InvokeVoidAsync("alert", $"{product.ProductName} has been added to your cart!");
+            
+            // Tùy chọn: Chuyển hướng đến trang giỏ hàng
+            if (await JSRuntime.InvokeAsync<bool>("confirm", "View your cart now?"))
+            {
+                NavigationManager.NavigateTo("/cart");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error adding to cart: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", "Error adding item to cart");
+        }
     }
     
     private string GetProxyImageUrl(string originalUrl)
@@ -200,5 +265,10 @@
         }
         
         return originalUrl;
+    }
+    
+    private void NavigateToProductDetail(int productId)
+    {
+        NavigationManager.NavigateTo($"/product/{productId}");
     }
 }
