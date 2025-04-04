@@ -73,13 +73,7 @@
 
             </div>
 
-            <div class="col-md-6">
-
-                <label class="form-label fw-bold">Shipped Date</label>
-
-                <InputDate @bind-Value="OrderModel.ShippedDate" class="form-control" min="@OrderModel.RequiredDate.ToString("yyyy-MM-dd")" />
-
-            </div>
+           
         </div>
 
         <h4 class="mt-4 mb-3 text-primary"><i class="fas fa-box"></i> Order Items</h4>
@@ -154,7 +148,7 @@
         MemberId = 0,
         OrderDate = DateTime.Today,
         RequiredDate = DateTime.Today.AddDays(7),
-        ShippedDate = DateTime.Today.AddDays(3),
+        ShippedDate = null,
         Freight = 1m
     };
 
@@ -283,12 +277,12 @@
         }
 
         // Validate that Shipped Date is greater than or equal to Required Date
-        if (OrderModel.ShippedDate < OrderModel.RequiredDate)
-        {
-            ErrorMessage = "Shipped Date must be greater than or equal to Required Date.";
-            IsLoading = false;
-            return;
-        }
+        // if (OrderModel.ShippedDate < OrderModel.RequiredDate)
+        // {
+        //     ErrorMessage = "Shipped Date must be greater than or equal to Required Date.";
+        //     IsLoading = false;
+        //     return;
+        // }
 
         foreach (var item in OrderItems)
         {

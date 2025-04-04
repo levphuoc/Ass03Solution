@@ -16,8 +16,7 @@ namespace BLL.DTOs
         [Required(ErrorMessage = "RequiredDate is required.")]
         public DateTime RequiredDate { get; set; } = DateTime.Now.AddDays(7);
 
-        [Required(ErrorMessage = "ShippedDate is required.")]
-        public DateTime ShippedDate { get; set; } = DateTime.Now.AddDays(3);
+        public DateTime? ShippedDate { get; set; } = null;
 
         [Required(ErrorMessage = "Freight is required.")]
         [Range(1, double.MaxValue, ErrorMessage = "Freight must be greater than 0.")]
