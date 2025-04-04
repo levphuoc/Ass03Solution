@@ -30,6 +30,12 @@
         {
             // Ensure cart-utils.js is loaded
             await JSRuntime.InvokeVoidAsync("eval", "if (!window.forceDeleteCart) { var script = document.createElement('script'); script.src = 'js/cart-utils.js'; document.head.appendChild(script); }");
+            
+            // Ensure toast-notification.js is loaded
+            await JSRuntime.InvokeVoidAsync("eval", "if (!window.showToast) { var script = document.createElement('script'); script.src = 'js/toast-notification.js'; document.head.appendChild(script); }");
+            
+            // Ensure navigation-utils.js is loaded
+            await JSRuntime.InvokeVoidAsync("eval", "if (!window.navigateWithReload) { var script = document.createElement('script'); script.src = 'js/navigation-utils.js'; document.head.appendChild(script); }");
         }
         
         await base.OnAfterRenderAsync(firstRender);
