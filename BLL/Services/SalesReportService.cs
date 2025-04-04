@@ -1,5 +1,7 @@
 ﻿using BLL.DTOs;
 using BLL.Hubs;
+using BLL.Services.FirebaseServices;
+using BLL.Services.FirebaseServices.Interfaces;
 using BLL.Services.IServices;
 using DataAccessLayer.Data;
 using DataAccessLayer.Repository;
@@ -17,13 +19,18 @@ namespace BLL.Services
     {
         private readonly EStoreDbContext _context;
         private readonly IHubContext<SalesReportHub> _hubContext;
+        private readonly IFirebaseDataUploaderService _firebaseUploader;
 
-        public SalesReportService(EStoreDbContext context, IHubContext<SalesReportHub> hubContext)
+        public SalesReportService(
+            EStoreDbContext context,
+            IHubContext<SalesReportHub> hubContext,
+            IFirebaseDataUploaderService firebaseUploader)
         {
             _context = context;
             _hubContext = hubContext;
+            _firebaseUploader = firebaseUploader;
         }
-            
+
         public async Task<List<SalesReportDTO>> GenerateReportAsync(DateTime startDate, DateTime endDate)
         {
             var report = await _context.OrderDetails
@@ -38,11 +45,28 @@ namespace BLL.Services
                 .OrderByDescending(r => r.TotalRevenue)
                 .ToListAsync();
 
-            // Push notification to all clients (real-time update)
-            await _hubContext.Clients.All.SendAsync("SalesReportGenerated", report);
+            try
+            {
+                if (report.Any())
+                {
+                    await _firebaseUploader.UploadReportWithProductsAsync(startDate, endDate, report);
+                    Console.WriteLine("Report sent to Firestore.");
+                }
+                else
+                {
+                    Console.WriteLine("No sales data to upload to Firestore.");
+                }
+
+                await _hubContext.Clients.All.SendAsync("SalesReportGenerated", report);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($" Firebase upload failed: {ex.Message}");
+            }
 
             return report;
         }
     }
+
 
 }

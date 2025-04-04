@@ -5,6 +5,11 @@ using DataAccessLayer.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using BLL.Hubs;
+using BLL.Services.FirebaseServices.Core;
+using BLL.Services.FirebaseServices.Interfaces;
+using BLL.Services.FirebaseServices.Utilities;
+using eStore.Utils;
+using BLL.Services.FirebaseServices.EmailSender;
 
 using Microsoft.AspNetCore.Authentication.Cookies;
 using eStore;
@@ -20,7 +25,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Thêm CORS policy
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -31,18 +35,14 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Thêm controllers cho API
 builder.Services.AddControllers();
-
 // Add HttpClient for API calls
 builder.Services.AddHttpClient();
 
 // Add controller support
 builder.Services.AddApplicationServices();
-
 // Change from Scoped to Transient to prevent concurrent access issues
-// Program.cs hoặc Startup.cs
-
+// Program.cs
 // Đăng ký DbContext với Scoped thay vì Transient
 builder.Services.AddDbContext<EStoreDbContext>(options =>
 {
@@ -70,7 +70,6 @@ builder.Services.AddDbContext<EStoreDbContext>(options =>
     options.ConfigureWarnings(warnings => 
         warnings.Throw(RelationalEventId.MultipleCollectionIncludeWarning));
 });
-
 
 // Auth providers
 builder.Services.AddAuthenticationCore();
@@ -121,6 +120,34 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("RequireUser", policy => policy.RequireRole("Admin", "Staff", "Deliverer", "User"));
 });
 
+// Ensure initialization
+var firebaseApp = FirebaseInitializerService.Initialize(
+    ProgramUtils.GetKeyPath(builder)
+);
+
+// Inject Firestore with that credential
+builder.Services.AddSingleton<IFirebaseDataUploaderService>(provider =>
+{
+    var credential = FirebaseInitializerService.GetCredential();
+    return new FirebaseDataUploaderService(FirebaseServiceUtils.AppName, credential);
+});
+
+builder.Services.AddSingleton<IFirebaseStorageService>(provider =>
+    new FirebaseStorageService(
+        ProgramUtils.GetKeyPath(builder),
+        FirebaseServiceUtils.BucketName)); // bucket name here
+
+// Business Logic Services
+builder.Services.AddHostedService<AutoReportSchedulerService>();
+builder.Services.AddScoped<IFileSaveAndLoadUtil, FileSaveAndLoadUtil>();
+builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+
+builder.Services.AddScoped<IMemberService, MemberService>();
+builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IOrderDetailService, OrderDetailService>();
+builder.Services.AddScoped<ISalesReportService, SalesReportService>();
+
 // SignalR
 builder.Services.AddSignalR();
 // -------------------- App Build --------------------
@@ -131,7 +158,6 @@ app.MapHub<OrderHub>("/orderHub");
 app.MapHub<MemberHub>("/memberHub");
 app.MapHub<ProductHub>("/productHub");
 app.MapHub<CategoryHub>("/categoryHub");
-
 
 // Test DB Connection
 // Test DB Connection and Seed data
@@ -168,7 +194,24 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapRazorComponents<App>()
+app.MapRazorComponents<eStore.Components.App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+
+public static class ProgramUtils
+{
+    public static WebApplicationBuilder Builder { get; set; } = null;
+    public static string GetKeyPath(WebApplicationBuilder builder)
+    {
+        Builder ??= builder;
+        return Path.Combine(builder.Environment.WebRootPath, "secrets", "firebase-key.json");
+    }
+
+    public static string GetKeyPath()
+    {
+        if (Builder == null) return "";
+        return GetKeyPath(Builder);
+    }
+}
+
