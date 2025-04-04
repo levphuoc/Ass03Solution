@@ -126,7 +126,7 @@ else
                                     <td>#@order.OrderId</td>
                                     <td>@order.OrderDate.ToShortDateString()</td>
                                     <td>@(order.RequiredDate?.ToShortDateString() ?? "N/A")</td>
-                                    <td>@(order.ShippedDate?.ToShortDateString() ?? "N/A")</td>
+                                    <td>@(order.ShippedDate?.ToShortDateString() ?? "Not Applicable")</td>
                                     <td>@((decimal)order.Freight % 1 == 0 ? ((decimal)order.Freight).ToString("0") : ((decimal)order.Freight).ToString("0.##")) kg</td>
 
                                     <td>

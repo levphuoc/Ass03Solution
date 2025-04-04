@@ -28,8 +28,10 @@ else
         <dt class="col-sm-2">Required Date</dt>
         <dd class="col-sm-10">@OrderModel.RequiredDate.ToShortDateString()</dd>
 
-        <dt class="col-sm-2">Shipped Date</dt>
-        <dd class="col-sm-10">@OrderModel.ShippedDate.ToShortDateString()</dd>
+       <dt class="col-sm-2">Shipped Date</dt>
+        <dd class="col-sm-10">@((OrderModel.ShippedDate?.ToShortDateString()) ?? "Not Applicable")</dd>
+
+        
 
         <dt class="col-sm-2">Freight</dt>
         

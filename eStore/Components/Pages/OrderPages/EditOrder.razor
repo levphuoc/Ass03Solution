@@ -60,10 +60,7 @@
                         <InputDate @bind-Value="OrderModel.RequiredDate" class="form-control" min="@OrderModel.OrderDate.ToString("yyyy-MM-dd")" @onchange="OnRequiredDateChanged" />
                     </div>
 
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Shipped Date</label>
-                        <InputDate @bind-Value="OrderModel.ShippedDate" class="form-control" min="@OrderModel.RequiredDate.ToString("yyyy-MM-dd")" />
-                    </div>
+                   
                 </div>
 
                
@@ -152,12 +149,7 @@
         }
 
         // Validate that Shipped Date is greater than or equal to Required Date
-        if (OrderModel.ShippedDate < OrderModel.RequiredDate)
-        {
-            ErrorMessage = "Shipped Date must be greater than or equal to Required Date.";
-            IsLoading = false;
-            return;
-        }
+        
 
         await OrderService.UpdateOrderAsync(OrderModel);
         IsSuccess = true;

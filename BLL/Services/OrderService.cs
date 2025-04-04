@@ -182,7 +182,7 @@ namespace BLL.Services
                 MemberId = order.MemberId,
                 OrderDate = order.OrderDate,
                 RequiredDate = (DateTime)order.RequiredDate,
-                ShippedDate = (DateTime)order.ShippedDate,
+                ShippedDate = order.ShippedDate ?? default(DateTime?),
                 Freight = (decimal)order.Freight
             };
         }
@@ -242,6 +242,13 @@ namespace BLL.Services
         public async Task ShippingOrderAsync(int orderId)
         {
             await UpdateOrderStatusAsync(orderId, OrderStatus.Shipping);
+           var order =  await _unitOfWork.Orders.GetByIdAsync(orderId);
+            if (order == null)
+                throw new InvalidOperationException("Order not found.");
+            order.ShippedDate = DateTime.Now;
+            await _unitOfWork.Orders.UpdateAsync(order);
+            await _unitOfWork.SaveChangesAsync();
+
         }
 
         public async Task ShippedOrderAsync(int orderId)
