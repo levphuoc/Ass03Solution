@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @using BLL.DTOs
 @using BLL.Extensions
+@using BLL.Services.FirebaseServices.Core
 @using BLL.Services.FirebaseServices.Interfaces
 @using BLL.Services.FirebaseServices.Utilities
 @using BLL.Services.IServices
@@ -10,6 +11,9 @@
 @inject ISalesReportService SalesReportService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
+@inject IServiceProvider ServiceProvider
+@inject ILogger<AutoReportSchedulerService> Logger
+
 @* @inject IFirebaseAnalyticsService FirebaseAnalytics *@
 @inject eStore.Utils.IFileSaveAndLoadUtil FileUtil
 
@@ -85,6 +89,8 @@
 
         <div class="row mt-4 justify-content-end">
             <div class="col-auto d-flex gap-2">
+                <button class="btn btn-warning" @onclick="TriggerManualReport">⚙️Run Auto Report Now</button>
+
                 <button class="btn btn-outline-danger" @onclick="SaveChartToImage">
                     <i class="fas fa-image me-1"></i> Save Chart as Image
                 </button>
@@ -444,7 +450,36 @@ else if (HasGenerated)
             IsLoading = false;
         }
     }
+    private async Task TriggerManualReport()
+    {
+        using var scope = ServiceProvider.CreateScope();
 
+        try
+        {
+            var salesService = scope.ServiceProvider.GetRequiredService<ISalesReportService>();
+            var firebaseUploader = scope.ServiceProvider.GetRequiredService<IFirebaseDataUploaderService>();
+            var emailService = scope.ServiceProvider.GetRequiredService<IEmailSender>();
+
+            var endDate = DateTime.Today;
+            var startDate = endDate.AddDays(-1); // simulate daily range
+
+            var reportData = await salesService.GenerateReportAsync(startDate, endDate);
+            await firebaseUploader.UploadReportWithProductsAsync(startDate, endDate, reportData);
+
+            await emailService.SendEmailAsync(
+                "trieuthanhdat12345@gmail.com",
+                "Manual Auto Report Triggered",
+                $"Manually triggered report for {startDate:yyyy-MM-dd} to {endDate:yyyy-MM-dd} uploaded successfully.");
+
+            UploadStatusMessage = $"📊 Report generated and emailed for {startDate:yyyy-MM-dd} → {endDate:yyyy-MM-dd}.";
+            Logger.LogInformation(" Manual auto-report succeeded.");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, " Manual auto-report failed.");
+            ErrorMessage = "Manual auto-report failed.";
+        }
+    }
     #endregion
 }
 

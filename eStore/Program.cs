@@ -9,6 +9,7 @@ using BLL.Services.FirebaseServices.Core;
 using BLL.Services.FirebaseServices.Interfaces;
 using BLL.Services.FirebaseServices.Utilities;
 using eStore.Utils;
+using BLL.Services.FirebaseServices.EmailSender;
 
 using Microsoft.AspNetCore.Authentication.Cookies;
 using eStore;
@@ -145,7 +146,9 @@ builder.Services.AddSingleton<IFirebaseStorageService>(provider =>
 
 
 // Business Logic Services
+builder.Services.AddHostedService<AutoReportSchedulerService>();
 builder.Services.AddScoped<IFileSaveAndLoadUtil, FileSaveAndLoadUtil>();
+builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
 
 builder.Services.AddScoped<IMemberService, MemberService>();
 builder.Services.AddScoped<IProductService, ProductService>();
