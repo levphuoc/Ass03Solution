@@ -11,6 +11,7 @@
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 @using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.AspNetCore.SignalR
 @using System.Security.Claims
 @inject IOrderDetailService OrderDetailService
 @inject IHttpContextAccessor HttpContextAccessor
@@ -352,9 +353,62 @@
                 }
             }
             
+            // Hiển thị thông báo thành công trước
             IsSuccess = true;
-            await hubConnection.InvokeAsync("NotifyOrderCreation", createdOrderId);
-            await InvokeAsync(() => NavigationManager.NavigateTo("/orders"));
+            await InvokeAsync(StateHasChanged);
+            
+            try
+            {
+                // Gửi thông báo cho các kết nối Hub nếu kết nối vẫn hoạt động
+                if (hubConnection?.State == HubConnectionState.Connected)
+                {
+                    await hubConnection.InvokeAsync("NotifyOrderCreation", createdOrderId);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Chỉ log lỗi nhưng không dừng quy trình
+                Console.WriteLine($"Error notifying hub: {ex.Message}");
+            }
+            
+            try
+            {
+                // Hiển thị thông báo thành công bằng toast notification
+                await JSRuntime.InvokeVoidAsync("showSuccessToast", 
+                    "Đơn hàng đã được tạo thành công!", 
+                    "Đặt hàng thành công");
+                
+                // Chuyển trang ngay lập tức với force reload
+                await JSRuntime.InvokeVoidAsync("navigateWithReload", "/orders", true);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error showing toast and scheduling navigation: {ex.Message}");
+                
+                // Nếu có lỗi, thử phương án dự phòng
+                try
+                {
+                    // Hiển thị thông báo đơn giản
+                    await JSRuntime.InvokeVoidAsync("alert", "Đơn hàng đã được tạo thành công!");
+                    
+                    // Sử dụng hàm điều hướng khẩn cấp
+                    await JSRuntime.InvokeVoidAsync("emergencyNavigate", "/orders");
+                }
+                catch (Exception innerEx)
+                {
+                    Console.WriteLine($"Error in fallback navigation: {innerEx.Message}");
+                    
+                    // Nếu mọi cách đều thất bại, buộc reload trang
+                    try
+                    {
+                        await JSRuntime.InvokeVoidAsync("window.location.reload");
+                    }
+                    catch
+                    {
+                        // Không còn gì để làm nếu cả reload cũng thất bại
+                    }
+                }
+            }
 
     }
 }
