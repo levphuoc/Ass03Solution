@@ -30,5 +30,8 @@ namespace BLL.Services.IServices
         
         // Xóa giỏ hàng khi đã tạo đơn hàng thành công
         Task DeleteCartAfterOrderCreateAsync(int memberId);
+        
+        // Xóa cart bất kể còn item hay không 
+        Task<bool> ForceDeleteCartAsync(int memberId);
     }
 } 

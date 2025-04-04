@@ -434,7 +434,39 @@ namespace BLL.Services
         {
             try
             {
-                await _unitOfWork.Carts.RemoveItemFromCartAsync(memberId, productId);
+                _logger?.LogInformation($"Removing product {productId} from cart for member {memberId}");
+                
+                // First check if this product is the last item in the cart
+                var cartBeforeRemoval = await _unitOfWork.Carts.GetCartWithItemsByMemberIdAsync(memberId);
+                bool isLastItem = cartBeforeRemoval?.CartItems?.Count <= 1 && 
+                                 cartBeforeRemoval.CartItems.Any(ci => ci.ProductId == productId);
+                
+                if (isLastItem)
+                {
+                    _logger?.LogInformation($"Product {productId} is the last item in cart {cartBeforeRemoval.CartId}. Cart will be deleted.");
+                }
+                
+                // Remove the item from cart
+                bool success = await _unitOfWork.Carts.RemoveItemFromCartAsync(memberId, productId);
+                
+                if (success)
+                {
+                    _logger?.LogInformation($"Successfully removed product {productId} from cart for member {memberId}");
+                    
+                    // Check if cart still exists after removal
+                    var cartAfterRemoval = await _unitOfWork.Carts.GetCartWithItemsByMemberIdAsync(memberId);
+                    if (cartAfterRemoval == null && isLastItem)
+                    {
+                        _logger?.LogInformation($"Cart was successfully removed as it had no more items");
+                    }
+                    else if (isLastItem && cartAfterRemoval != null)
+                    {
+                        // If this was the last item but cart still exists, force delete it
+                        _logger?.LogWarning($"Cart {cartBeforeRemoval.CartId} still exists after removing last item. Force deleting...");
+                        await ForceDeleteCartAsync(memberId);
+                    }
+                }
+                
                 return await GetCartAsync(memberId);
             }
             catch (Exception ex)
@@ -449,7 +481,34 @@ namespace BLL.Services
         {
             try
             {
-                return await _unitOfWork.Carts.ClearCartAsync(memberId);
+                _logger?.LogInformation($"Clearing entire cart for member {memberId}");
+                
+                // Get cart before clearing to log details
+                var cartBeforeClear = await _unitOfWork.Carts.GetCartWithItemsByMemberIdAsync(memberId);
+                if (cartBeforeClear != null)
+                {
+                    _logger?.LogInformation($"Cart {cartBeforeClear.CartId} with {cartBeforeClear.CartItems?.Count ?? 0} items will be deleted");
+                }
+                
+                bool success = await _unitOfWork.Carts.ClearCartAsync(memberId);
+                
+                if (success)
+                {
+                    _logger?.LogInformation($"Successfully cleared and removed cart for member {memberId}");
+                    
+                    // Verify cart was deleted
+                    var cartAfterClear = await _unitOfWork.Carts.GetCartWithItemsByMemberIdAsync(memberId);
+                    if (cartAfterClear == null)
+                    {
+                        _logger?.LogInformation($"Verified cart for member {memberId} no longer exists");
+                    }
+                    else
+                    {
+                        _logger?.LogWarning($"Cart for member {memberId} still exists after clear operation - this should not happen");
+                    }
+                }
+                
+                return success;
             }
             catch (Exception ex)
             {
@@ -576,6 +635,73 @@ namespace BLL.Services
             catch (Exception ex)
             {
                 _logger?.LogError(ex, $"Error deleting cart for member {memberId} after order creation: {ex.Message}");
+            }
+        }
+
+        // Xóa cart bất kể còn item hay không
+        public async Task<bool> ForceDeleteCartAsync(int memberId)
+        {
+            try
+            {
+                _logger?.LogInformation($"Force deleting cart for member {memberId}");
+                
+                // Get cart details before deletion
+                var cart = await _unitOfWork.Carts.GetCartWithItemsByMemberIdAsync(memberId);
+                if (cart == null)
+                {
+                    _logger?.LogInformation($"No cart found for member {memberId} to delete");
+                    return true; // Consider it a success if cart doesn't exist
+                }
+                
+                int cartId = cart.CartId;
+                
+                // Try multiple deletion approaches just like in checkout
+                
+                // First approach: Use repository's DeleteCartAndItemsByMemberIdAsync
+                await _unitOfWork.Carts.DeleteCartAndItemsByMemberIdAsync(memberId);
+                
+                // Verify deletion
+                var cartAfterFirstAttempt = await _unitOfWork.Carts.GetCartWithItemsByMemberIdAsync(memberId);
+                if (cartAfterFirstAttempt == null)
+                {
+                    _logger?.LogInformation($"Cart {cartId} successfully deleted on first attempt");
+                    return true;
+                }
+                
+                // Second approach: Clear cart items then delete cart
+                _logger?.LogWarning($"First deletion attempt failed for cart {cartId}, trying second approach");
+                
+                await _unitOfWork.Carts.ClearCartAsync(memberId);
+                
+                // Verify second attempt
+                var cartAfterSecondAttempt = await _unitOfWork.Carts.GetCartWithItemsByMemberIdAsync(memberId);
+                if (cartAfterSecondAttempt == null)
+                {
+                    _logger?.LogInformation($"Cart {cartId} successfully deleted on second attempt");
+                    return true;
+                }
+                
+                // Third approach: Direct SQL deletion
+                _logger?.LogWarning($"Second deletion attempt failed for cart {cartId}, trying direct SQL approach");
+                await ForceDeleteCartWithSQLAsync(memberId, cartId);
+                
+                // Final verification
+                var cartAfterAllAttempts = await _unitOfWork.Carts.GetCartWithItemsByMemberIdAsync(memberId);
+                if (cartAfterAllAttempts == null)
+                {
+                    _logger?.LogInformation($"Cart {cartId} successfully deleted after all attempts");
+                    return true;
+                }
+                else
+                {
+                    _logger?.LogError($"All attempts to delete cart {cartId} failed");
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, $"Error in ForceDeleteCartAsync for member {memberId}");
+                return false;
             }
         }
     }
