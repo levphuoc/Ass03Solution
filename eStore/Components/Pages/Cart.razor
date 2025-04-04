@@ -174,15 +174,18 @@
     private async Task UpdateQuantity(int productId, int quantity)
     {
         if (currentUser == null) return;
-        
+
         if (quantity < 1) quantity = 1;
-        
+
         try
         {
+            // Update the item in the cart
             cart = await CartService.UpdateCartItemAsync(
-                currentUser.MemberId, 
-                productId, 
+                currentUser.MemberId,
+                productId,
                 quantity);
+            
+            // After updating the quantity, `TotalAmount` will automatically be updated since it recalculates
         }
         catch (Exception ex)
         {
@@ -199,6 +202,7 @@
         if (item != null)
         {
             await UpdateQuantity(productId, item.Quantity + 1);
+            StateHasChanged();
         }
     }
 
@@ -210,6 +214,7 @@
         if (item != null && item.Quantity > 1)
         {
             await UpdateQuantity(productId, item.Quantity - 1);
+            StateHasChanged();
         }
     }
 
