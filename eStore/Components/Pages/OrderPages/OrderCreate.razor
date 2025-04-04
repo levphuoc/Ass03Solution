@@ -215,12 +215,16 @@
         {
             foreach (var cartItem in cartItems)
             {
+                // Make sure we're getting the actual quantities and prices from the database
+                Console.WriteLine($"Adding order item: Product ID: {cartItem.ProductId}, Name: {cartItem.Product.ProductName}, Quantity: {cartItem.Quantity}, TotalPrice: {cartItem.TotalPrice}");
+                
                 OrderItems.Add(new OrderItemDTO
                     {
                         ProductId = cartItem.ProductId,
                         ProductName = cartItem.Product.ProductName,
-                        Quantity = cartItem.Quantity,
-                        UnitPrice = cartItem.Product.UnitPrice,
+                        Quantity = cartItem.Quantity,  // Use the actual cart item quantity from DB
+                        UnitPrice = cartItem.UnitPrice,
+                        // Use the TotalPrice directly from the database rather than recalculating
                         TotalItem = (float)cartItem.TotalPrice,
                     });
 

@@ -52,6 +52,11 @@ namespace DataAccessLayer.UnitOfWork
             return connection;
         }
 
+        public DbContext GetDbContext()
+        {
+            return _context;
+        }
+
         protected virtual void Dispose(bool disposing)
         {
             if (!_disposed)

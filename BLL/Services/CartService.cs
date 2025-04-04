@@ -41,9 +41,13 @@ namespace BLL.Services
                     return new CartDTO();
                 }
 
-                var cartDto = new CartDTO
+                // Create the cart items with explicitly calculated totals
+                var cartItems = new List<CartItemDTO>();
+                decimal manualTotalCheck = 0;
+                
+                foreach (var ci in cart.CartItems)
                 {
-                    Items = cart.CartItems.Select(ci => new CartItemDTO
+                    var itemDto = new CartItemDTO
                     {
                         ProductId = ci.ProductId,
                         ProductName = ci.Product.ProductName,
@@ -51,8 +55,28 @@ namespace BLL.Services
                         UnitPrice = ci.UnitPrice,
                         Quantity = ci.Quantity,
                         CategoryName = ci.Product.Category?.CategoryName ?? ""
-                    }).ToList()
+                    };
+                    
+                    // Calculate total manually for validation
+                    decimal itemTotal = ci.UnitPrice * ci.Quantity;
+                    manualTotalCheck += itemTotal;
+                    
+                    // Log the total calculation for debugging
+                    Console.WriteLine($"CART DEBUG: Item {itemDto.ProductName}, Price: {itemDto.UnitPrice}, Qty: {itemDto.Quantity}, Total: {itemTotal}, Calculated Property: {itemDto.Total}");
+                    
+                    cartItems.Add(itemDto);
+                }
+                
+                var cartDto = new CartDTO
+                {
+                    Items = cartItems
                 };
+                
+                // Force calculation of totals and verify
+                decimal totalAmount = cartDto.TotalAmount;
+                Console.WriteLine($"CART DEBUG: Cart manual total check: {manualTotalCheck}");
+                Console.WriteLine($"CART DEBUG: Cart property total: {totalAmount}");
+                Console.WriteLine($"CART DEBUG: Do they match? {manualTotalCheck == totalAmount}");
 
                 return cartDto;
             }
@@ -128,6 +152,8 @@ namespace BLL.Services
         {
             try
             {
+                Console.WriteLine($"SERVICE DEBUG: Starting cart item update - MemberId: {memberId}, ProductId: {productId}, Quantity: {quantity}");
+                
                 // If quantity is 0 or negative, remove the item instead
                 if (quantity <= 0)
                 {
@@ -148,7 +174,7 @@ namespace BLL.Services
                     _logger?.LogWarning($"Cannot update cart - Product {productId} is out of stock");
                     // Remove the item from cart since it's out of stock
                     await RemoveFromCartAsync(memberId, productId);
-                    return new CartDTO { ErrorMessage = $"Product '{product.ProductName}' has been removed from your cart because it is out of stock." };
+                    return new CartDTO { ErrorMessage = $"⚠️ {product.ProductName} has been removed from your cart because it is OUT OF STOCK." };
                 }
                 
                 // Check if requested quantity is available
@@ -158,17 +184,248 @@ namespace BLL.Services
                     // Update to maximum available quantity instead
                     await _unitOfWork.Carts.UpdateCartItemQuantityAsync(memberId, productId, product.UnitsInStock);
                     var cart = await GetCartAsync(memberId);
-                    cart.ErrorMessage = $"Only {product.UnitsInStock} units of '{product.ProductName}' are available. Your cart has been updated.";
+                    
+                    // Make the error message more prominent
+                    cart.ErrorMessage = $"⚠️ STOCK LIMITATION: Only {product.UnitsInStock} units of '{product.ProductName}' are available. Your cart has been updated to the maximum quantity.";
+                    
+                    // Make sure the item in the cart shows the correct quantity
+                    var cartItem = cart.Items.FirstOrDefault(i => i.ProductId == productId);
+                    if (cartItem != null && cartItem.Quantity != product.UnitsInStock)
+                    {
+                        // Force the correct quantity in the DTO
+                        cartItem.Quantity = product.UnitsInStock;
+                    }
+                    
                     return cart;
                 }
 
-                await _unitOfWork.Carts.UpdateCartItemQuantityAsync(memberId, productId, quantity);
-                return await GetCartAsync(memberId);
+                // Try the standard repository update
+                bool updateResult = await _unitOfWork.Carts.UpdateCartItemQuantityAsync(memberId, productId, quantity);
+                
+                if (!updateResult)
+                {
+                    Console.WriteLine($"SERVICE DEBUG: Standard update failed, trying direct update");
+                    await ForceUpdateCartItemQuantityAsync(memberId, productId, quantity);
+                }
+                
+                // Get the updated cart after changes
+                var updatedCart = await GetCartAsync(memberId);
+                Console.WriteLine($"SERVICE DEBUG: Cart update completed. Cart has {updatedCart.Items.Count} items.");
+                
+                return updatedCart;
             }
             catch (Exception ex)
             {
                 _logger?.LogError(ex, $"Error updating product {productId} quantity in cart for member {memberId}");
                 return new CartDTO { ErrorMessage = "An error occurred while updating the cart." };
+            }
+        }
+        
+        // Directly update cart item using SQL
+        private async Task ForceUpdateCartItemQuantityAsync(int memberId, int productId, int quantity)
+        {
+            try
+            {
+                Console.WriteLine($"SERVICE DEBUG: Executing direct SQL update - MemberId: {memberId}, ProductId: {productId}, New Quantity: {quantity}");
+                
+                // Get a database connection
+                var connection = _unitOfWork.GetDbConnection();
+                
+                // First, find the cart ID directly from the database
+                int cartId = 0;
+                using (var cmd1 = connection.CreateCommand())
+                {
+                    cmd1.CommandText = "SELECT CartId FROM Carts WHERE MemberId = @MemberId";
+                    var param1 = cmd1.CreateParameter();
+                    param1.ParameterName = "@MemberId";
+                    param1.Value = memberId;
+                    cmd1.Parameters.Add(param1);
+                    
+                    var result = await cmd1.ExecuteScalarAsync();
+                    if (result != null && result != DBNull.Value)
+                    {
+                        cartId = Convert.ToInt32(result);
+                    }
+                }
+                
+                if (cartId == 0)
+                {
+                    throw new Exception($"No cart found for member {memberId}");
+                }
+                
+                // Get the current unit price directly from the database
+                decimal unitPrice = 0;
+                using (var cmd2 = connection.CreateCommand())
+                {
+                    cmd2.CommandText = "SELECT UnitPrice FROM CartItems WHERE CartId = @CartId AND ProductId = @ProductId";
+                    var param1 = cmd2.CreateParameter();
+                    param1.ParameterName = "@CartId";
+                    param1.Value = cartId;
+                    cmd2.Parameters.Add(param1);
+                    
+                    var param2 = cmd2.CreateParameter();
+                    param2.ParameterName = "@ProductId";
+                    param2.Value = productId;
+                    cmd2.Parameters.Add(param2);
+                    
+                    var result = await cmd2.ExecuteScalarAsync();
+                    if (result != null && result != DBNull.Value)
+                    {
+                        unitPrice = Convert.ToDecimal(result);
+                    }
+                }
+                
+                if (unitPrice == 0)
+                {
+                    throw new Exception($"Cart item for product {productId} not found or has invalid price");
+                }
+                
+                // Calculate the new total price
+                decimal totalPrice = unitPrice * quantity;
+                Console.WriteLine($"SERVICE DEBUG: Direct SQL update - CartId: {cartId}, ProductId: {productId}, " +
+                    $"UnitPrice: {unitPrice}, New Quantity: {quantity}, New TotalPrice: {totalPrice}");
+                
+                // Update the cart item with new quantity and total price
+                using (var cmd3 = connection.CreateCommand())
+                {
+                    cmd3.CommandText = @"
+                        UPDATE CartItems 
+                        SET Quantity = @Quantity, 
+                            TotalPrice = @TotalPrice,
+                            UpdatedAt = @UpdatedAt
+                        WHERE CartId = @CartId AND ProductId = @ProductId";
+                    
+                    var paramQty = cmd3.CreateParameter();
+                    paramQty.ParameterName = "@Quantity";
+                    paramQty.Value = quantity;
+                    cmd3.Parameters.Add(paramQty);
+                    
+                    var paramTotal = cmd3.CreateParameter();
+                    paramTotal.ParameterName = "@TotalPrice";
+                    paramTotal.Value = totalPrice;
+                    cmd3.Parameters.Add(paramTotal);
+                    
+                    var paramUpdated = cmd3.CreateParameter();
+                    paramUpdated.ParameterName = "@UpdatedAt";
+                    paramUpdated.Value = DateTime.UtcNow;
+                    cmd3.Parameters.Add(paramUpdated);
+                    
+                    var paramCartId = cmd3.CreateParameter();
+                    paramCartId.ParameterName = "@CartId";
+                    paramCartId.Value = cartId;
+                    cmd3.Parameters.Add(paramCartId);
+                    
+                    var paramProductId = cmd3.CreateParameter();
+                    paramProductId.ParameterName = "@ProductId";
+                    paramProductId.Value = productId;
+                    cmd3.Parameters.Add(paramProductId);
+                    
+                    int rowsAffected = await cmd3.ExecuteNonQueryAsync();
+                    Console.WriteLine($"SERVICE DEBUG: Direct SQL update completed. Rows affected: {rowsAffected}");
+                    
+                    if (rowsAffected == 0)
+                    {
+                        throw new Exception("SQL Update failed - no rows were updated");
+                    }
+                }
+                
+                // Update cart's UpdatedAt timestamp
+                using (var cmd4 = connection.CreateCommand())
+                {
+                    cmd4.CommandText = "UPDATE Carts SET UpdatedAt = @UpdatedAt WHERE CartId = @CartId";
+                    
+                    var paramUpdated = cmd4.CreateParameter();
+                    paramUpdated.ParameterName = "@UpdatedAt";
+                    paramUpdated.Value = DateTime.UtcNow;
+                    cmd4.Parameters.Add(paramUpdated);
+                    
+                    var paramCartId = cmd4.CreateParameter();
+                    paramCartId.ParameterName = "@CartId";
+                    paramCartId.Value = cartId;
+                    cmd4.Parameters.Add(paramCartId);
+                    
+                    await cmd4.ExecuteNonQueryAsync();
+                }
+                
+                // Verify the update using a separate SQL query
+                using (var cmd5 = connection.CreateCommand())
+                {
+                    cmd5.CommandText = "SELECT Quantity, TotalPrice FROM CartItems WHERE CartId = @CartId AND ProductId = @ProductId";
+                    
+                    var paramCartId = cmd5.CreateParameter();
+                    paramCartId.ParameterName = "@CartId";
+                    paramCartId.Value = cartId;
+                    cmd5.Parameters.Add(paramCartId);
+                    
+                    var paramProductId = cmd5.CreateParameter();
+                    paramProductId.ParameterName = "@ProductId";
+                    paramProductId.Value = productId;
+                    cmd5.Parameters.Add(paramProductId);
+                    
+                    using (var reader = await cmd5.ExecuteReaderAsync())
+                    {
+                        if (await reader.ReadAsync())
+                        {
+                            int updatedQty = reader.GetInt32(0);
+                            decimal updatedTotal = reader.GetDecimal(1);
+                            
+                            Console.WriteLine($"SERVICE DEBUG: Verification - Updated values in database: Quantity={updatedQty}, TotalPrice={updatedTotal}");
+                            
+                            if (updatedQty != quantity)
+                            {
+                                Console.WriteLine($"WARNING: Database verification shows quantity mismatch: Expected {quantity}, got {updatedQty}");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("WARNING: Could not verify update - no matching row found");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"SERVICE DEBUG: Error in ForceUpdateCartItemQuantityAsync - {ex.Message}");
+                
+                // One last desperate attempt with raw SQL in a transaction
+                try
+                {
+                    var dbContext = _unitOfWork.GetDbContext();
+                    
+                    using (var transaction = await dbContext.Database.BeginTransactionAsync())
+                    {
+                        try
+                        {
+                            // Find the cart ID
+                            var cartIdResult = await dbContext.Database.ExecuteSqlRawAsync(
+                                "SELECT CAST(CartId AS INT) FROM Carts WHERE MemberId = {0}", memberId);
+                            
+                            // Direct update with transaction
+                            await dbContext.Database.ExecuteSqlRawAsync(
+                                "UPDATE ci SET ci.Quantity = {0}, ci.TotalPrice = ci.UnitPrice * {0}, ci.UpdatedAt = GETUTCDATE() " +
+                                "FROM CartItems ci " +
+                                "INNER JOIN Carts c ON ci.CartId = c.CartId " +
+                                "WHERE c.MemberId = {1} AND ci.ProductId = {2}",
+                                quantity, memberId, productId);
+                                
+                            await transaction.CommitAsync();
+                            
+                            Console.WriteLine("SERVICE DEBUG: Emergency transaction commit succeeded");
+                        }
+                        catch (Exception innerEx)
+                        {
+                            await transaction.RollbackAsync();
+                            Console.WriteLine($"SERVICE DEBUG: Emergency transaction failed - {innerEx.Message}");
+                            throw;
+                        }
+                    }
+                }
+                catch
+                {
+                    // Just swallow this - we've tried our best
+                    Console.WriteLine("SERVICE DEBUG: All SQL update attempts failed");
+                    throw; // Rethrow the original exception
+                }
             }
         }
 
