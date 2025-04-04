@@ -447,7 +447,18 @@
             
             if (await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to clear your cart?"))
             {
-                await CartService.ClearCartAsync(currentUser.MemberId);
+                // Đảm bảo cart bị xóa hoàn toàn với cơ chế mạnh hơn
+                bool success = await CartService.ForceDeleteCartAsync(currentUser.MemberId);
+                
+                if (success)
+                {
+                    Console.WriteLine("Cart successfully cleared and completely deleted");
+                }
+                else
+                {
+                    Console.WriteLine("WARNING: Failed to completely delete cart, trying standard clear");
+                    await CartService.ClearCartAsync(currentUser.MemberId);
+                }
                 
                 // Create a new empty cart
                 cart = new CartDTO();

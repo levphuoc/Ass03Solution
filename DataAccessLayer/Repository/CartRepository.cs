@@ -108,7 +108,14 @@ namespace DataAccessLayer.Repository
             if (cart == null)
                 return false;
 
+            // Remove all cart items
             _context.CartItems.RemoveRange(cart.CartItems);
+            
+            // Remove the cart itself
+            _context.Carts.Remove(cart);
+            
+            Console.WriteLine($"Removing entire cart {cart.CartId} for member {memberId} during clear operation");
+            
             await _context.SaveChangesAsync();
             return true;
         }
@@ -328,9 +335,42 @@ namespace DataAccessLayer.Repository
             if (cartItem == null)
                 return false;
 
+            // Check if this is the last item BEFORE removing it
+            bool isLastItem = cart.CartItems.Count <= 1;
+            Console.WriteLine($"Removing item from cart: CartId={cart.CartId}, ProductId={productId}, IsLastItem={isLastItem}, ItemCount={cart.CartItems.Count}");
+
+            // Remove the cart item
             _context.CartItems.Remove(cartItem);
-            cart.UpdatedAt = DateTime.UtcNow;
+            
+            // If this was the last item, remove the cart too
+            if (isLastItem)
+            {
+                Console.WriteLine($"Removing entire cart {cart.CartId} as it has no more items");
+                _context.Carts.Remove(cart);
+            }
+            else
+            {
+                // Otherwise just update the timestamp
+                cart.UpdatedAt = DateTime.UtcNow;
+            }
+            
             await _context.SaveChangesAsync();
+            
+            // Verify the cart was deleted if it was the last item
+            if (isLastItem)
+            {
+                var cartCheck = await _context.Carts.FirstOrDefaultAsync(c => c.CartId == cart.CartId);
+                Console.WriteLine($"Cart deletion verification: CartId={cart.CartId}, Exists={cartCheck != null}");
+                
+                // If cart still exists somehow, try to delete it again
+                if (cartCheck != null)
+                {
+                    Console.WriteLine($"Cart {cart.CartId} still exists after deletion attempt, trying again");
+                    _context.Carts.Remove(cartCheck);
+                    await _context.SaveChangesAsync();
+                }
+            }
+            
             return true;
         }
 
