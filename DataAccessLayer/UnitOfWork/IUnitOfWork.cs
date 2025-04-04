@@ -22,5 +22,8 @@ namespace DataAccessLayer.UnitOfWork
         
         // Get direct database connection for emergency operations
         DbConnection GetDbConnection();
+        
+        // Get database context for direct SQL operations
+        Microsoft.EntityFrameworkCore.DbContext GetDbContext();
     }
 }

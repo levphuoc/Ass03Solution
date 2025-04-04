@@ -43,9 +43,12 @@
     {
         @if (!string.IsNullOrEmpty(cart.ErrorMessage))
         {
-            <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                @cart.ErrorMessage
+            <div class="alert alert-warning alert-dismissible fade show" role="alert" style="position: sticky; top: 0; z-index: 1000;">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-exclamation-triangle-fill me-2 fs-4"></i>
+                    <strong class="me-2">Important:</strong>
+                    <span>@cart.ErrorMessage</span>
+                </div>
                 <button type="button" class="btn-close" @onclick="ClearErrorMessage"></button>
             </div>
         }
@@ -92,13 +95,52 @@
                                     <td>@($"{item.UnitPrice:C}")</td>
                                     <td>
                                         <div class="input-group" style="width: 120px;">
-                                            <button class="btn btn-outline-secondary" type="button" @onclick="() => DecrementQuantity(item.ProductId)">-</button>
+                                            <button class="btn btn-outline-secondary" type="button" 
+                                                    @onclick:preventDefault
+                                                    @onclick:stopPropagation
+                                                    @onclick="async () => await DecrementQuantity(item.ProductId)"
+                                                    disabled="@(updatingItems.ContainsKey(item.ProductId) && updatingItems[item.ProductId])">
+                                                @if (updatingItems.ContainsKey(item.ProductId) && updatingItems[item.ProductId])
+                                                {
+                                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                                }
+                                                else
+                                                {
+                                                    <i class="bi bi-dash"></i>
+                                                }
+                                            </button>
                                             <input type="number" class="form-control text-center" min="1" value="@item.Quantity" 
-                                                   @onchange="(e) => UpdateQuantity(item.ProductId, Convert.ToInt32(e.Value))" />
-                                            <button class="btn btn-outline-secondary" type="button" @onclick="() => IncrementQuantity(item.ProductId)">+</button>
+                                                   @onchange="async (e) => await UpdateQuantity(item.ProductId, Convert.ToInt32(e.Value))"
+                                                   disabled="@(updatingItems.ContainsKey(item.ProductId) && updatingItems[item.ProductId])" />
+                                            <button class="btn btn-outline-secondary" type="button"
+                                                    @onclick:preventDefault
+                                                    @onclick:stopPropagation
+                                                    @onclick="async () => await IncrementQuantity(item.ProductId)"
+                                                    disabled="@(updatingItems.ContainsKey(item.ProductId) && updatingItems[item.ProductId])">
+                                                @if (updatingItems.ContainsKey(item.ProductId) && updatingItems[item.ProductId])
+                                                {
+                                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                                }
+                                                else
+                                                {
+                                                    <i class="bi bi-plus"></i>
+                                                }
+                                            </button>
                                         </div>
                                     </td>
-                                    <td>@($"{item.Total:C}")</td>
+                                    <td>
+                                        @if (updatingItems.ContainsKey(item.ProductId) && updatingItems[item.ProductId])
+                                        {
+                                            <div class="d-flex align-items-center">
+                                                <span class="me-2">Updating...</span>
+                                                <div class="spinner-border spinner-border-sm" role="status"></div>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span>@($"${item.Total:F2}")</span>
+                                        }
+                                    </td>
                                     <td>
                                         <button class="btn btn-danger btn-sm" @onclick="() => RemoveItem(item.ProductId)">
                                             <i class="bi bi-trash"></i> Remove
@@ -110,7 +152,19 @@
                         <tfoot>
                             <tr>
                                 <th colspan="3" class="text-end">Total:</th>
-                                <th>@($"{cart.TotalAmount:C}")</th>
+                                <th>
+                                    @if (isUpdatingQuantity)
+                                    {
+                                        <div class="d-flex align-items-center">
+                                            <span class="me-2">Updating...</span>
+                                            <div class="spinner-border spinner-border-sm" role="status"></div>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span>@($"${cart.TotalAmount:F2}")</span>
+                                    }
+                                </th>
                                 <th></th>
                             </tr>
                         </tfoot>
@@ -142,6 +196,8 @@
     private Member? currentUser;
     private CartDTO? cart;
     private bool isLoading = true;
+    private bool isUpdatingQuantity = false;
+    private Dictionary<int, bool> updatingItems = new Dictionary<int, bool>();
 
     protected override async Task OnInitializedAsync()
     {
@@ -174,56 +230,197 @@
     private async Task UpdateQuantity(int productId, int quantity)
     {
         if (currentUser == null) return;
+        if (isUpdatingQuantity) return;
         
         if (quantity < 1) quantity = 1;
         
         try
         {
-            cart = await CartService.UpdateCartItemAsync(
-                currentUser.MemberId, 
-                productId, 
-                quantity);
+            // Set loading state for this specific product
+            isUpdatingQuantity = true;
+            updatingItems[productId] = true;
+            StateHasChanged(); // Trigger UI update for loading state
+            
+            Console.WriteLine($"CART DEBUG: Starting update - ProductID={productId}, New Quantity={quantity}");
+            
+            // Get current item details for logging
+            var currentItem = cart?.Items.FirstOrDefault(i => i.ProductId == productId);
+            if (currentItem != null)
+            {
+                Console.WriteLine($"CART DEBUG: Current state - Item: {currentItem.ProductName}, Qty: {currentItem.Quantity}, UnitPrice: {currentItem.UnitPrice}, Total: {currentItem.Total}");
+            }
+            
+            bool updateSuccess = false;
+            int retryCount = 0;
+            CartDTO updatedCart = null;
+            
+            // Try up to 3 times to update the cart
+            while (!updateSuccess && retryCount < 3)
+            {
+                try
+                {
+                    retryCount++;
+                    if (retryCount > 1)
+                    {
+                        Console.WriteLine($"CART DEBUG: Retry #{retryCount} for updating product {productId}");
+                        await Task.Delay(500); // Add delay between retries
+                    }
+                    
+                    // Get updated cart from service
+                    updatedCart = await CartService.UpdateCartItemAsync(
+                        currentUser.MemberId, 
+                        productId, 
+                        quantity);
+                    
+                    updateSuccess = true;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"CART DEBUG: Error on attempt #{retryCount}: {ex.Message}");
+                    if (retryCount >= 3) throw; // Rethrow after all retries fail
+                }
+            }
+            
+            if (updatedCart == null)
+            {
+                throw new Exception("Failed to update cart after multiple attempts");
+            }
+                
+            // Create a new cart object to force recalculation of totals
+            cart = updatedCart;
+            
+            // Check if there was a stock limitation error
+            if (!string.IsNullOrEmpty(cart.ErrorMessage) && 
+                (cart.ErrorMessage.Contains("available") || 
+                 cart.ErrorMessage.Contains("in stock") || 
+                 cart.ErrorMessage.Contains("out of stock")))
+            {
+                // Use our special handling for stock limitation messages
+                await ShowStockLimitationMessage(cart.ErrorMessage);
+                
+                // Clear the message from the DTO to avoid duplicate display
+                cart.ErrorMessage = null;
+            }
+            
+            // Manually verify each item's Total value is calculated correctly
+            foreach (var item in cart.Items)
+            {
+                decimal calculatedTotal = item.UnitPrice * item.Quantity;
+                Console.WriteLine($"CART DEBUG: After update - Item: {item.ProductName}, Price: {item.UnitPrice:C}, Qty: {item.Quantity}, Calculated Total: {calculatedTotal:C}, DTO Total Property: {item.Total:C}");
+                
+                // Ensure our item has the correct values
+                if (item.ProductId == productId && item.Quantity != quantity)
+                {
+                    Console.WriteLine($"CART DEBUG: WARNING - Item quantity in DTO doesn't match requested quantity: {item.Quantity} vs {quantity}");
+                    item.Quantity = quantity; // Force correct quantity in the DTO
+                    // Recalculate total
+                    item.RecomputeTotal();
+                }
+            }
+            
+            // Calculate and verify the cart total
+            decimal cartTotal = cart.Items.Sum(item => item.UnitPrice * item.Quantity);
+            Console.WriteLine($"CART DEBUG: Cart summary - Verified total: {cartTotal:C}, CartDTO.TotalAmount: {cart.TotalAmount:C}, Items count: {cart.Items.Count}");
+            
+            // Force UI update with existing data
+            await InvokeAsync(StateHasChanged);
+            
+            // Force a complete reload of cart from the database after a delay
+            // This ensures we get the latest TotalPrice values
+            _ = Task.Run(async () => 
+            {
+                await Task.Delay(800); // Longer delay to ensure DB operations complete
+                await RefreshCart();
+            });
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error updating quantity: {ex.Message}");
-            await JSRuntime.InvokeVoidAsync("alert", "Error updating item quantity");
+            Console.WriteLine($"ERROR: Failed to update quantity: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", $"Error updating item quantity: {ex.Message}");
+        }
+        finally
+        {
+            // Short delay to ensure all calculations are complete
+            await Task.Delay(500);
+            
+            // Clear loading state
+            isUpdatingQuantity = false;
+            updatingItems[productId] = false;
+            
+            // Force a UI refresh to ensure totals are updated
+            await InvokeAsync(StateHasChanged);
         }
     }
 
     private async Task IncrementQuantity(int productId)
     {
         if (currentUser == null || cart == null) return;
+        if (updatingItems.ContainsKey(productId) && updatingItems[productId]) return;
+        if (isUpdatingQuantity) return;
         
-        var item = cart.Items.FirstOrDefault(i => i.ProductId == productId);
-        if (item != null)
+        try 
         {
-            await UpdateQuantity(productId, item.Quantity + 1);
+            var item = cart.Items.FirstOrDefault(i => i.ProductId == productId);
+            if (item != null)
+            {
+                int newQuantity = item.Quantity + 1;
+                Console.WriteLine($"Incrementing product {productId} from {item.Quantity} to {newQuantity}");
+                await UpdateQuantity(productId, newQuantity);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error incrementing quantity: {ex.Message}");
         }
     }
 
     private async Task DecrementQuantity(int productId)
     {
         if (currentUser == null || cart == null) return;
+        if (updatingItems.ContainsKey(productId) && updatingItems[productId]) return;
+        if (isUpdatingQuantity) return;
         
-        var item = cart.Items.FirstOrDefault(i => i.ProductId == productId);
-        if (item != null && item.Quantity > 1)
+        try
         {
-            await UpdateQuantity(productId, item.Quantity - 1);
+            var item = cart.Items.FirstOrDefault(i => i.ProductId == productId);
+            if (item != null && item.Quantity > 1)
+            {
+                int newQuantity = item.Quantity - 1;
+                Console.WriteLine($"Decrementing product {productId} from {item.Quantity} to {newQuantity}");
+                await UpdateQuantity(productId, newQuantity);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error decrementing quantity: {ex.Message}");
         }
     }
 
     private async Task RemoveItem(int productId)
     {
         if (currentUser == null) return;
+        if (isUpdatingQuantity) return;
         
         try
         {
+            isUpdatingQuantity = true;
+            StateHasChanged();
+            
             if (await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to remove this item?"))
             {
-                cart = await CartService.RemoveFromCartAsync(
+                // Get updated cart from service
+                var updatedCart = await CartService.RemoveFromCartAsync(
                     currentUser.MemberId, 
                     productId);
+                    
+                // Create a new cart object to force recalculation
+                cart = new CartDTO
+                {
+                    Items = updatedCart.Items.ToList(),
+                    ErrorMessage = updatedCart.ErrorMessage
+                };
+                
+                Console.WriteLine($"Item removed. Cart has {cart.TotalItems} items, total: {cart.TotalAmount:C}");
             }
         }
         catch (Exception ex)
@@ -231,24 +428,41 @@
             Console.WriteLine($"Error removing item: {ex.Message}");
             await JSRuntime.InvokeVoidAsync("alert", "Error removing item from cart");
         }
+        finally
+        {
+            isUpdatingQuantity = false;
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private async Task ClearCart()
     {
         if (currentUser == null) return;
+        if (isUpdatingQuantity) return;
         
         try
         {
+            isUpdatingQuantity = true;
+            StateHasChanged();
+            
             if (await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to clear your cart?"))
             {
                 await CartService.ClearCartAsync(currentUser.MemberId);
+                
+                // Create a new empty cart
                 cart = new CartDTO();
+                Console.WriteLine("Cart cleared");
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error clearing cart: {ex.Message}");
             await JSRuntime.InvokeVoidAsync("alert", "Error clearing your cart");
+        }
+        finally
+        {
+            isUpdatingQuantity = false;
+            await InvokeAsync(StateHasChanged);
         }
     }
 
@@ -294,6 +508,95 @@
         if (cart != null)
         {
             cart.ErrorMessage = null;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ShowStockLimitationMessage(string message)
+    {
+        if (cart != null)
+        {
+            cart.ErrorMessage = message;
+            StateHasChanged();
+            
+            // Schedule clearing the error message after 8 seconds to ensure user sees it
+            _ = Task.Run(async () => 
+            {
+                await Task.Delay(8000);
+                await InvokeAsync(() => 
+                {
+                    // Only clear if it's still the same message (hasn't been changed by user)
+                    if (cart?.ErrorMessage == message)
+                    {
+                        cart.ErrorMessage = null;
+                        StateHasChanged();
+                    }
+                });
+            });
+            
+            // Also show an alert for critical messages to ensure they're seen
+            await JSRuntime.InvokeVoidAsync("alert", message);
+        }
+    }
+
+    private async Task RefreshCart()
+    {
+        if (currentUser == null) return;
+        
+        try
+        {
+            Console.WriteLine("CART DEBUG: Starting RefreshCart - reloading cart data from database");
+            
+            // Store the current error message before refresh
+            string currentErrorMessage = cart?.ErrorMessage;
+            
+            // Reload cart from server
+            var freshCart = await CartService.GetCartAsync(currentUser.MemberId);
+            
+            if (freshCart == null || freshCart.Items == null)
+            {
+                Console.WriteLine("CART DEBUG: RefreshCart - Null or empty cart returned from server");
+                return;
+            }
+            
+            // Log refreshed cart state
+            Console.WriteLine($"CART DEBUG: RefreshCart - Loaded cart with {freshCart.Items.Count} items");
+            
+            // Log calculated values
+            decimal manualTotalCheck = freshCart.Items.Sum(item => item.UnitPrice * item.Quantity);
+            Console.WriteLine($"CART DEBUG: RefreshCart - Manual total: ${manualTotalCheck:F2}");
+            
+            // Force recalculation of all items
+            var recalculatedItems = freshCart.Items.Select(item => 
+            {
+                decimal calculatedTotal = item.UnitPrice * item.Quantity;
+                Console.WriteLine($"CART DEBUG: RefreshCart - Item: {item.ProductName}, Price: ${item.UnitPrice:F2}, Qty: {item.Quantity}, Calculated Total: ${calculatedTotal:F2}, DTO Total: ${item.Total:F2}");
+                return item;
+            }).ToList();
+            
+            // Create a brand new cart object with the recalculated items
+            var recalculatedCart = new CartDTO
+            {
+                Items = recalculatedItems,
+                // Preserve the error message from before the refresh, unless there's a new one
+                ErrorMessage = !string.IsNullOrEmpty(freshCart.ErrorMessage) ? freshCart.ErrorMessage : currentErrorMessage
+            };
+            
+            // Force CartDTO to calculate the TotalAmount property
+            decimal recalculatedTotal = recalculatedCart.TotalAmount;
+            Console.WriteLine($"CART DEBUG: RefreshCart - Recalculated cart total: ${recalculatedTotal:F2}");
+            
+            // Update the UI on the UI thread
+            await InvokeAsync(() => 
+            {
+                cart = recalculatedCart;
+                Console.WriteLine($"CART DEBUG: Cart refreshed: TotalAmount=${cart.TotalAmount:F2}, Items: {cart.TotalItems}");
+                StateHasChanged();
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"ERROR: Failed to refresh cart: {ex.Message}");
         }
     }
 } 
