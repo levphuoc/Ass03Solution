@@ -11,6 +11,7 @@ namespace BLL.Services.FirebaseServices.Utilities
     public static class FirebaseServiceUtils
     {
         public const string BucketName = "groupassignment03-prn222.firebasestorage.app";
+        public const string AppName = "groupassignment03-prn222";
         public static FirebaseStorageService CreateStorageService(string firebaseKeyPath)
         {
             return new FirebaseStorageService(firebaseKeyPath, BucketName);

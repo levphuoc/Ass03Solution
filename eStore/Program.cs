@@ -42,7 +42,7 @@ builder.Services.AddHttpClient();
 // Add controller support
 builder.Services.AddApplicationServices();
 // Change from Scoped to Transient to prevent concurrent access issues
-// Program.cs hoặc Startup.cs
+// Program.cs
 // Đăng ký DbContext với Scoped thay vì Transient
 builder.Services.AddDbContext<EStoreDbContext>(options =>
 {
@@ -70,7 +70,6 @@ builder.Services.AddDbContext<EStoreDbContext>(options =>
     options.ConfigureWarnings(warnings => 
         warnings.Throw(RelationalEventId.MultipleCollectionIncludeWarning));
 });
-
 
 // Auth providers
 builder.Services.AddAuthenticationCore();
@@ -120,10 +119,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("RequireMember", policy => policy.RequireRole("Admin", "Staff", "Deliverer"));
     options.AddPolicy("RequireUser", policy => policy.RequireRole("Admin", "Staff", "Deliverer", "User"));
 });
-builder.Services.AddSingleton<IFirebaseDataUploaderService>(provider =>
-    new FirebaseDataUploaderService(
-        Path.Combine(builder.Environment.WebRootPath, "secrets", "firebase-key.json"),
-        "groupassignment03-prn222")
+
 // Ensure initialization
 var firebaseApp = FirebaseInitializerService.Initialize(
     ProgramUtils.GetKeyPath(builder)
@@ -133,17 +129,13 @@ var firebaseApp = FirebaseInitializerService.Initialize(
 builder.Services.AddSingleton<IFirebaseDataUploaderService>(provider =>
 {
     var credential = FirebaseInitializerService.GetCredential();
-    return new FirebaseDataUploaderService("groupassignment03-prn222", credential);
+    return new FirebaseDataUploaderService(FirebaseServiceUtils.AppName, credential);
 });
 
 builder.Services.AddSingleton<IFirebaseStorageService>(provider =>
     new FirebaseStorageService(
         ProgramUtils.GetKeyPath(builder),
         FirebaseServiceUtils.BucketName)); // bucket name here
-
-// Firebase Analytics (Measurement Protocol)
-//builder.Services.AddSingleton<IFirebaseAnalyticsService, FirebaseAnalyticsService>();
-
 
 // Business Logic Services
 builder.Services.AddHostedService<AutoReportSchedulerService>();

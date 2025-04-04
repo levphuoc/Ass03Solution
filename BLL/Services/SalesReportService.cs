@@ -17,12 +17,12 @@ namespace BLL.Services
 {
     public class SalesReportService : ISalesReportService
     {
-        private readonly eStoreDbContext _context;
+        private readonly EStoreDbContext _context;
         private readonly IHubContext<SalesReportHub> _hubContext;
         private readonly IFirebaseDataUploaderService _firebaseUploader;
 
         public SalesReportService(
-            eStoreDbContext context,
+            EStoreDbContext context,
             IHubContext<SalesReportHub> hubContext,
             IFirebaseDataUploaderService firebaseUploader)
         {

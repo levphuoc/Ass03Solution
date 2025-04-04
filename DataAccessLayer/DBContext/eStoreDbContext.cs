@@ -10,6 +10,14 @@ namespace DataAccessLayer.Data
 {
     public class EStoreDbContext : DbContext
     {
+        // chuỗi kết nối với tên db sẽ làm  việc đặt là webdb
+        //public const string ConnectStrring = @"Data Source=localhost,1433;Initial Catalog=webdb;User ID=sa;Password=1234567890";
+
+        //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        //{
+        //    optionsBuilder.UseSqlServer(ConnectStrring);
+        //    //optionsBuilder.UseLoggerFactory(GetLoggerFactory());       // bật logger
+        //}
         public EStoreDbContext(DbContextOptions<EStoreDbContext> options) : base(options)
         {
             this.Database.EnsureCreated();
